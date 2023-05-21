@@ -11,6 +11,7 @@ import {EIP712} from "@openzeppelin/contracts/contracts/utils/cryptography/EIP71
 import {IERC1271} from "@openzeppelin/contracts/contracts/interfaces/IERC1271.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/contracts/utils/cryptography/SignatureChecker.sol";
 import {Ownable} from "@openzeppelin/contracts/contracts/access/Ownable.sol";
+import {IEthereal} from "./IEthereal.sol";
 
 abstract contract Ethereal is ERC721, EIP712 {
     // tokenId of Ethereal NFT => source that the NFT corresponds to
@@ -69,6 +70,14 @@ abstract contract Ethereal is ERC721, EIP712 {
         string memory name_arg,
         string memory symbol_arg
     ) ERC721(name_arg, symbol_arg) EIP712("ethereal", "0.0.1") {}
+
+    function supportsInterface(
+        bytes4 interfaceId
+    ) public view override returns (bool) {
+        return
+            interfaceId == type(IEthereal).interfaceId ||
+            super.supportsInterface(interfaceId);
+    }
 
     function tokenURI(
         uint256 tokenId
