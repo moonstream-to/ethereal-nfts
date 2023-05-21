@@ -148,8 +148,12 @@ abstract contract Ethereal is ERC721, EIP712 {
         if (!isSignerValidForSource(signer, sourceId)) {
             revert InvalidSignerForSource(signer, sourceId);
         }
-        if (Source[tokenId] != 0 && block.timestamp <= LiveUntil[tokenId]) {
-            revert TokenNotExpired(tokenId, LiveUntil[tokenId]);
+        if (Source[tokenId] != 0) {
+            if (block.timestamp <= LiveUntil[tokenId]) {
+                revert TokenNotExpired(tokenId, LiveUntil[tokenId]);
+            } else {
+                destroy(tokenId);
+            }
         }
         if (block.timestamp > liveUntil) {
             revert LivenessDeadlineExpired(liveUntil);
