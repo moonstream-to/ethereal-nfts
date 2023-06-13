@@ -504,7 +504,7 @@ class EtherealTestCase(unittest.TestCase):
         self,
     ):
         """
-        Tests that an Ethereal NFT that is still live cannot be recreated with a different recipient.
+        Tests that an Ethereal NFT that is no longer live can be recreated with a different recipient.
         """
         liveness_interval = 2
 
@@ -549,7 +549,10 @@ class EtherealTestCase(unittest.TestCase):
         token_owner_1 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_1, recipient)
 
-        time.sleep(liveness_interval + 0.1)
+        # When we only left 100 milliseconds in the sleep, we were getting an error because it seems
+        # like the backing (ganache) blockchain had not registered the ownership change.
+        # Even the current delay may be too short. This makes success non-deterministic.
+        time.sleep(liveness_interval + 1)
 
         other_recipient_account = accounts[2]
         other_recipient = other_recipient_account.address

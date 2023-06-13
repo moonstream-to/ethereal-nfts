@@ -28,6 +28,10 @@ abstract contract Ethereal is ERC721, EIP712 {
     mapping(uint256 => uint256) public Source;
     // tokenId of Ethereal NFT => source identifier for the token the Ethereal NFT derives from
     mapping(uint256 => uint256) public SourceTokenID;
+    // Maps (source, source token ID) => Ethereal token ID
+    // This mapping is used to guarantee that multiple Ethereal NFTs are not issued for each (source, source token) pair.
+    mapping(uint256 => mapping(uint256 => uint256))
+        public CurrentEtherealTokenID;
     // tokenId of Ethereal NFT => block timestamp until the NFT can be publicly destroyed
     // An Ethereal NFT can only be destroyed *strictly after* this timestamp.
     mapping(uint256 => uint256) public LiveUntil;
@@ -60,6 +64,12 @@ abstract contract Ethereal is ERC721, EIP712 {
     error InvalidSignerForSource(address signer, uint256 sourceId);
     error TokenNotExpired(uint256 tokenId, uint256 liveUntil);
     error TokenDoesNotExist(uint256 tokenId);
+    error TokenAlreadyIssued(
+        uint256 sourceId,
+        uint256 sourceTokenId,
+        uint256 existingTokenId
+    );
+    error InvalidTokenID(uint256 tokenId);
 
     function isSignerValidForSource(
         address signer,
@@ -119,6 +129,10 @@ abstract contract Ethereal is ERC721, EIP712 {
         address signer,
         bytes memory signature
     ) external {
+        if (tokenId == 0) {
+            revert InvalidTokenID(tokenId);
+        }
+
         bytes32 messageHash = createMessageHash(
             recipient,
             tokenId,
@@ -148,19 +162,31 @@ abstract contract Ethereal is ERC721, EIP712 {
         if (!isSignerValidForSource(signer, sourceId)) {
             revert InvalidSignerForSource(signer, sourceId);
         }
+
         if (Source[tokenId] != 0) {
             if (block.timestamp <= LiveUntil[tokenId]) {
                 revert TokenNotExpired(tokenId, LiveUntil[tokenId]);
             } else {
+                // This sets the Source and SourceTokenID to 0, marking the Ethereal token ID as inactive.
                 destroy(tokenId);
             }
         }
+
+        if (CurrentEtherealTokenID[sourceId][sourceTokenId] != 0) {
+            revert TokenAlreadyIssued(
+                sourceId,
+                sourceTokenId,
+                CurrentEtherealTokenID[sourceId][sourceTokenId]
+            );
+        }
+
         if (block.timestamp > liveUntil) {
             revert LivenessDeadlineExpired(liveUntil);
         }
 
         Source[tokenId] = sourceId;
         SourceTokenID[tokenId] = sourceTokenId;
+        CurrentEtherealTokenID[sourceId][sourceTokenId] = tokenId;
         LiveUntil[tokenId] = liveUntil;
         MetadataURI[tokenId] = metadataURI;
         _mint(recipient, tokenId);
@@ -186,6 +212,7 @@ abstract contract Ethereal is ERC721, EIP712 {
         _burn(tokenId);
         MetadataURI[tokenId] = "";
         LiveUntil[tokenId] = 0;
+        CurrentEtherealTokenID[Source[tokenId]][SourceTokenID[tokenId]] = 0;
         SourceTokenID[tokenId] = 0;
         Source[tokenId] = 0;
 
