@@ -809,6 +809,67 @@ class EtherealTestCase(unittest.TestCase):
         with self.assertRaises(VirtualMachineError):
             self.ethereal.owner_of(token_id)
 
+
+    def test_ethereal_nft_can_be_destroyed_by_anyone(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT can be destroyed by anyone (after live until timestamp has passed).
+        """
+        liveness_interval = 2
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 55
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        signature = sign_message(message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        # When we only left 100 milliseconds in the sleep, we were getting an error because it seems
+        # like the backing (ganache) blockchain had not registered the ownership change.
+        # Even the current delay may be too short. This makes success non-deterministic.
+        time.sleep(liveness_interval + 1)
+
+        self.ethereal.destroy(token_id, transaction_config={"from": accounts[2]})
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+
     def test_ethereal_nft_cannot_be_destroyed_before_live_until(
         self,
     ):
