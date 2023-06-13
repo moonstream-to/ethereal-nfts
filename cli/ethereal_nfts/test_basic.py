@@ -585,8 +585,283 @@ class EtherealTestCase(unittest.TestCase):
 
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, other_recipient)
-        self.assertEqual(self.ethereal.live_until(token_id), new_live_until)
+        self.assertEqual(self.ethereal.live_until(token_id), new_live_until) 
 
+    def test_ethereal_nft_cannot_be_created_with_the_same_source_data_as_another(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT cannot be created with duplicate source and sourceId
+        """
+        liveness_interval = 3600
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 50
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        signature = sign_message(message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        # First NFT is good for an hour, so second creation should fail.
+        new_token_id = 51
+
+        message_hash_1 = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=new_token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        signature = sign_message(message_hash_1, signer)
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.create(
+                recipient=recipient,
+                token_id=new_token_id,
+                source_id=source_id,
+                source_token_id=source_token_id,
+                live_until=live_until,
+                metadata_uri=metadata_uri,
+                signer=signer.address,
+                signature=signature,
+                transaction_config={"from": recipient},
+            )
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(new_token_id)
+
+    def test_ethereal_nft_can_be_created_with_duplicate_sourceid_if_the_source_is_different(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT cannot be created with duplicate source and sourceId
+        """
+        liveness_interval = 3600
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 52
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        signature = sign_message(message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner, recipient)
+
+        token_id_1 = 53
+        source_id_1 = 2
+        metadata_uri_1 = f"https://example.com/source_nfts/{token_id_1}.json"
+
+        message_hash_1 = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id_1,
+            source_id=source_id_1,
+            # Duplicate source token id
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri_1,
+        )
+
+        signer_1 = self.signers[source_id_1][0]
+
+        signature_1 = sign_message(message_hash_1, signer_1)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id_1,
+            source_id=source_id_1,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri_1,
+            signer=signer_1.address,
+            signature=signature_1,
+            transaction_config={"from": recipient},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+    def test_ethereal_nft_can_be_destroyed_after_live_until(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT can be destroyed after live until timestamp has passed.
+        """
+        liveness_interval = 2
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 54
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        signature = sign_message(message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        # When we only left 100 milliseconds in the sleep, we were getting an error because it seems
+        # like the backing (ganache) blockchain had not registered the ownership change.
+        # Even the current delay may be too short. This makes success non-deterministic.
+        time.sleep(liveness_interval + 1)
+
+        self.ethereal.destroy(token_id, transaction_config={"from": recipient_account})
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+    def test_ethereal_nft_cannot_be_destroyed_before_live_until(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT cannot be destroyed before live until timestamp has passed.
+        """
+        liveness_interval = 3600
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 55
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        signature = sign_message(message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        # Removed sleep from the sucessful destroy test.
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.destroy(token_id, transaction_config={"from": recipient_account})
 
 if __name__ == "__main__":
     unittest.main()
