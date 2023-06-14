@@ -40,18 +40,18 @@ contract EtherealDeployer {
         }
     }
 
-    function BasicEtherealSalt(
+    function getBasicEtherealSalt(
         string memory name_arg,
         string memory symbol_arg
     ) public pure returns (bytes32 result) {
         return keccak256(abi.encodePacked(name_arg, symbol_arg));
     }
 
-    function BasicEtherealAddress(
+    function getBasicEtherealAddress(
         string memory name_arg,
         string memory symbol_arg
     ) external view returns (address result) {
-        bytes32 salt = BasicEtherealSalt(name_arg, symbol_arg);
+        bytes32 salt = getBasicEtherealSalt(name_arg, symbol_arg);
         // OMG init code: https://ethereum.stackexchange.com/questions/76334/what-is-the-difference-between-bytecode-init-code-deployed-bytecode-creation
         bytes memory bytecode = type(BasicEthereal).creationCode;
         bytes memory initCode = abi.encodePacked(
@@ -63,12 +63,12 @@ contract EtherealDeployer {
 
     // Deploys a new BasicEthereal contract which uses the OpenZeppelin Ownership contract to signify relayer authority.
     // Calculates salt from name and symbol.
-    function DeployBasicEthereal(
+    function deployBasicEthereal(
         string memory name_arg,
         string memory symbol_arg,
         address owner
     ) external returns (address result) {
-        bytes32 salt = BasicEtherealSalt(name_arg, symbol_arg);
+        bytes32 salt = getBasicEtherealSalt(name_arg, symbol_arg);
         BasicEthereal deployedContract = new BasicEthereal{salt: salt}(
             name_arg,
             symbol_arg

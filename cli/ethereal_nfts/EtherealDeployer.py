@@ -96,34 +96,34 @@ class EtherealDeployer:
         contract_class = contract_from_build(self.contract_name)
         contract_class.publish_source(self.contract)
 
-    def basic_ethereal_address(
-        self,
-        name_arg: str,
-        symbol_arg: str,
-        block_number: Optional[Union[str, int]] = "latest",
-    ) -> Any:
-        self.assert_contract_is_instantiated()
-        return self.contract.BasicEtherealAddress.call(
-            name_arg, symbol_arg, block_identifier=block_number
-        )
-
-    def basic_ethereal_salt(
-        self,
-        name_arg: str,
-        symbol_arg: str,
-        block_number: Optional[Union[str, int]] = "latest",
-    ) -> Any:
-        self.assert_contract_is_instantiated()
-        return self.contract.BasicEtherealSalt.call(
-            name_arg, symbol_arg, block_identifier=block_number
-        )
-
     def deploy_basic_ethereal(
         self, name_arg: str, symbol_arg: str, owner: ChecksumAddress, transaction_config
     ) -> Any:
         self.assert_contract_is_instantiated()
-        return self.contract.DeployBasicEthereal(
+        return self.contract.deployBasicEthereal(
             name_arg, symbol_arg, owner, transaction_config
+        )
+
+    def get_basic_ethereal_address(
+        self,
+        name_arg: str,
+        symbol_arg: str,
+        block_number: Optional[Union[str, int]] = "latest",
+    ) -> Any:
+        self.assert_contract_is_instantiated()
+        return self.contract.getBasicEtherealAddress.call(
+            name_arg, symbol_arg, block_identifier=block_number
+        )
+
+    def get_basic_ethereal_salt(
+        self,
+        name_arg: str,
+        symbol_arg: str,
+        block_number: Optional[Union[str, int]] = "latest",
+    ) -> Any:
+        self.assert_contract_is_instantiated()
+        return self.contract.getBasicEtherealSalt.call(
+            name_arg, symbol_arg, block_identifier=block_number
         )
 
 
@@ -211,31 +211,6 @@ def handle_verify_contract(args: argparse.Namespace) -> None:
     print(result)
 
 
-def handle_basic_ethereal_address(args: argparse.Namespace) -> None:
-    network.connect(args.network)
-    contract = EtherealDeployer(args.address)
-    result = contract.basic_ethereal_address(
-        name_arg=args.name_arg,
-        symbol_arg=args.symbol_arg,
-        block_number=args.block_number,
-    )
-    print(result)
-
-
-def handle_basic_ethereal_salt(args: argparse.Namespace) -> None:
-    network.connect(args.network)
-    contract = EtherealDeployer(args.address)
-    transaction_config = get_transaction_config(args)
-    result = contract.basic_ethereal_salt(
-        name_arg=args.name_arg,
-        symbol_arg=args.symbol_arg,
-        transaction_config=transaction_config,
-    )
-    print(result)
-    if args.verbose:
-        print(result.info())
-
-
 def handle_deploy_basic_ethereal(args: argparse.Namespace) -> None:
     network.connect(args.network)
     contract = EtherealDeployer(args.address)
@@ -244,6 +219,31 @@ def handle_deploy_basic_ethereal(args: argparse.Namespace) -> None:
         name_arg=args.name_arg,
         symbol_arg=args.symbol_arg,
         owner=args.owner,
+        transaction_config=transaction_config,
+    )
+    print(result)
+    if args.verbose:
+        print(result.info())
+
+
+def handle_get_basic_ethereal_address(args: argparse.Namespace) -> None:
+    network.connect(args.network)
+    contract = EtherealDeployer(args.address)
+    result = contract.get_basic_ethereal_address(
+        name_arg=args.name_arg,
+        symbol_arg=args.symbol_arg,
+        block_number=args.block_number,
+    )
+    print(result)
+
+
+def handle_get_basic_ethereal_salt(args: argparse.Namespace) -> None:
+    network.connect(args.network)
+    contract = EtherealDeployer(args.address)
+    transaction_config = get_transaction_config(args)
+    result = contract.get_basic_ethereal_salt(
+        name_arg=args.name_arg,
+        symbol_arg=args.symbol_arg,
         transaction_config=transaction_config,
     )
     print(result)
@@ -264,26 +264,6 @@ def generate_cli() -> argparse.ArgumentParser:
     add_default_arguments(verify_contract_parser, False)
     verify_contract_parser.set_defaults(func=handle_verify_contract)
 
-    basic_ethereal_address_parser = subcommands.add_parser("basic-ethereal-address")
-    add_default_arguments(basic_ethereal_address_parser, False)
-    basic_ethereal_address_parser.add_argument(
-        "--name-arg", required=True, help="Type: string", type=str
-    )
-    basic_ethereal_address_parser.add_argument(
-        "--symbol-arg", required=True, help="Type: string", type=str
-    )
-    basic_ethereal_address_parser.set_defaults(func=handle_basic_ethereal_address)
-
-    basic_ethereal_salt_parser = subcommands.add_parser("basic-ethereal-salt")
-    add_default_arguments(basic_ethereal_salt_parser, False)
-    basic_ethereal_salt_parser.add_argument(
-        "--name-arg", required=True, help="Type: string", type=str
-    )
-    basic_ethereal_salt_parser.add_argument(
-        "--symbol-arg", required=True, help="Type: string", type=str
-    )
-    basic_ethereal_salt_parser.set_defaults(func=handle_basic_ethereal_salt)
-
     deploy_basic_ethereal_parser = subcommands.add_parser("deploy-basic-ethereal")
     add_default_arguments(deploy_basic_ethereal_parser, True)
     deploy_basic_ethereal_parser.add_argument(
@@ -296,6 +276,30 @@ def generate_cli() -> argparse.ArgumentParser:
         "--owner", required=True, help="Type: address"
     )
     deploy_basic_ethereal_parser.set_defaults(func=handle_deploy_basic_ethereal)
+
+    get_basic_ethereal_address_parser = subcommands.add_parser(
+        "get-basic-ethereal-address"
+    )
+    add_default_arguments(get_basic_ethereal_address_parser, False)
+    get_basic_ethereal_address_parser.add_argument(
+        "--name-arg", required=True, help="Type: string", type=str
+    )
+    get_basic_ethereal_address_parser.add_argument(
+        "--symbol-arg", required=True, help="Type: string", type=str
+    )
+    get_basic_ethereal_address_parser.set_defaults(
+        func=handle_get_basic_ethereal_address
+    )
+
+    get_basic_ethereal_salt_parser = subcommands.add_parser("get-basic-ethereal-salt")
+    add_default_arguments(get_basic_ethereal_salt_parser, False)
+    get_basic_ethereal_salt_parser.add_argument(
+        "--name-arg", required=True, help="Type: string", type=str
+    )
+    get_basic_ethereal_salt_parser.add_argument(
+        "--symbol-arg", required=True, help="Type: string", type=str
+    )
+    get_basic_ethereal_salt_parser.set_defaults(func=handle_get_basic_ethereal_salt)
 
     return parser
 

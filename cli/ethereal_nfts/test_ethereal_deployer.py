@@ -48,7 +48,7 @@ class EtherealDeployerTestCase(unittest.TestCase):
 
         self.assertEqual(
             deployment_address,
-            self.ethereal_deployer.basic_ethereal_address(name, symbol),
+            self.ethereal_deployer.get_basic_ethereal_address(name, symbol),
         )
 
         basic_ethereal = BasicEthereal.BasicEthereal(deployment_address)
