@@ -30,8 +30,11 @@ class EtherealDeployerTestCase(unittest.TestCase):
         name = "Laugh out loud NFTs"
         symbol = "LOL"
 
+        deployer = accounts[1]
+        owner = accounts[2]
+
         self.ethereal_deployer.deploy_basic_ethereal(
-            name, symbol, accounts[2].address, {"from": accounts[1]}
+            name, symbol, owner.address, {"from": deployer}
         )
 
         deployment_events = _fetch_events_chunk(
@@ -54,7 +57,7 @@ class EtherealDeployerTestCase(unittest.TestCase):
         basic_ethereal = BasicEthereal.BasicEthereal(deployment_address)
         self.assertEqual(basic_ethereal.name(), name)
         self.assertEqual(basic_ethereal.symbol(), symbol)
-        self.assertEqual(basic_ethereal.owner(), accounts[2].address)
+        self.assertEqual(basic_ethereal.owner(), owner.address)
 
 
 # ABIs
