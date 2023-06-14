@@ -1,6 +1,7 @@
 import argparse
 
 from .BasicEthereal import generate_cli as basic_generate_cli
+from .EtherealDeployer import generate_cli as deployer_generate_cli
 from .version import VERSION
 
 
@@ -20,6 +21,16 @@ def generate_cli() -> argparse.ArgumentParser:
         description=basic_usage,
         help=basic_usage,
         parents=[basic_parser],
+        add_help=False,
+    )
+
+    deployer_usage = "Deploy and interact with EtherealDeployer contracts"
+    deployer_parser = deployer_generate_cli()
+    subparsers.add_parser(
+        "deployer",
+        description=deployer_usage,
+        help=deployer_usage,
+        parents=[deployer_parser],
         add_help=False,
     )
 

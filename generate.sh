@@ -15,17 +15,20 @@ set -e
 
 SCRIPT_DIR="$(dirname $(realpath $0))"
 
-cat >contracts/IEthereal.sol <<EOS
-// SPDX-License-Identifier: Apache-2.0
-
-pragma solidity ^0.8.0;
-EOS
 
 cd $SCRIPT_DIR
 
 brownie compile
 
-echo $SOLIDITY_HEADER >>contracts/IEthereal.sol
+cat >contracts/IEthereal.sol <<EOS
+// SPDX-License-Identifier: Apache-2.0
+
+pragma solidity ^0.8.0;
+
+EOS
 jq .abi build/contracts/Ethereal.json | solface -name IEthereal -annotations >>contracts/IEthereal.sol
 
+brownie compile
+
 moonworm generate-brownie -p . -o cli/ethereal_nfts/ -n BasicEthereal
+moonworm generate-brownie -p . -o cli/ethereal_nfts/ -n EtherealDeployer

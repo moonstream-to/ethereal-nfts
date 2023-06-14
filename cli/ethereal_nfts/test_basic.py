@@ -58,7 +58,7 @@ class EtherealTestCase(unittest.TestCase):
         # Supports IERC721Metadata
         self.assertTrue(self.ethereal.supports_interface("0x5b5e139f"))
         # Supports IEthereal
-        self.assertTrue(self.ethereal.supports_interface("0x6b583c91"))
+        self.assertTrue(self.ethereal.supports_interface("0x8737034c"))
 
     def test_create(self):
         """
@@ -585,7 +585,7 @@ class EtherealTestCase(unittest.TestCase):
 
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, other_recipient)
-        self.assertEqual(self.ethereal.live_until(token_id), new_live_until) 
+        self.assertEqual(self.ethereal.live_until(token_id), new_live_until)
 
     def test_ethereal_nft_cannot_be_created_with_the_same_source_data_as_another(
         self,
@@ -750,7 +750,6 @@ class EtherealTestCase(unittest.TestCase):
         token_owner_1 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_1, recipient)
 
- 
     def test_ethereal_nft_token_id_can_be_recycled(
         self,
     ):
@@ -848,7 +847,7 @@ class EtherealTestCase(unittest.TestCase):
         self.assertEqual(self.ethereal.source(token_id), source_id_1)
         self.assertEqual(self.ethereal.source_token_id(token_id), source_token_id_1)
         self.assertEqual(self.ethereal.live_until(token_id), live_until_1)
-        self.assertEqual(self.ethereal.token_uri(token_id), metadata_uri_1) 
+        self.assertEqual(self.ethereal.token_uri(token_id), metadata_uri_1)
 
     def test_ethereal_nft_can_be_destroyed_after_live_until(
         self,
@@ -909,7 +908,6 @@ class EtherealTestCase(unittest.TestCase):
         with self.assertRaises(VirtualMachineError):
             self.ethereal.owner_of(token_id)
 
-
     def test_ethereal_nft_can_be_destroyed_by_anyone(
         self,
     ):
@@ -969,7 +967,6 @@ class EtherealTestCase(unittest.TestCase):
         with self.assertRaises(VirtualMachineError):
             self.ethereal.owner_of(token_id)
 
-
     def test_ethereal_nft_cannot_be_destroyed_before_live_until(
         self,
     ):
@@ -1022,7 +1019,10 @@ class EtherealTestCase(unittest.TestCase):
         # Removed sleep from the sucessful destroy test.
 
         with self.assertRaises(VirtualMachineError):
-            self.ethereal.destroy(token_id, transaction_config={"from": recipient_account})
+            self.ethereal.destroy(
+                token_id, transaction_config={"from": recipient_account}
+            )
+
 
     def test_ethereal_nft_can_be_burned_with_signature(
         self,
