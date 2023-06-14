@@ -1147,7 +1147,7 @@ class EtherealTestCase(unittest.TestCase):
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, recipient)
 
-    def test_ethereal_nft_cannot_be_burned_with_invalid_signerature(
+    def test_ethereal_nft_cannot_be_burned_with_invalid_signature(
         self,
     ):
         """
