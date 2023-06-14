@@ -60,6 +60,7 @@ class EtherealTestCase(unittest.TestCase):
         # Supports IEthereal
         self.assertTrue(self.ethereal.supports_interface("0x8737034c"))
 
+
     def test_create(self):
         """
         Tests that the intended recipient for an Ethereal NFT can claim their NFT as long as they make the
@@ -1079,7 +1080,7 @@ class EtherealTestCase(unittest.TestCase):
 
         burn_signature = sign_message(burn_message_hash, signer)
 
-        self.ethereal.burn_with_signature(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
+        self.ethereal.burn(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
 
         with self.assertRaises(VirtualMachineError):
             self.ethereal.owner_of(token_id)
@@ -1094,7 +1095,7 @@ class EtherealTestCase(unittest.TestCase):
 
         recipient_account = accounts[1]
         recipient = recipient_account.address
-        token_id = 58
+        token_id = 59
         source_id = 1
         source_token_id = token_id
         live_until = int(time.time()) + liveness_interval
@@ -1141,7 +1142,7 @@ class EtherealTestCase(unittest.TestCase):
         burn_signature = sign_message(burn_message_hash, invalid_signer)
 
         with self.assertRaises(VirtualMachineError):
-            self.ethereal.burn_with_signature(token_id, invalid_signer, burn_signature, transaction_config={"from": recipient_account})
+            self.ethereal.burn(token_id, invalid_signer, burn_signature, transaction_config={"from": recipient_account})
 
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, recipient)
@@ -1156,7 +1157,7 @@ class EtherealTestCase(unittest.TestCase):
 
         recipient_account = accounts[1]
         recipient = recipient_account.address
-        token_id = 58
+        token_id = 60
         source_id = 1
         source_token_id = token_id
         live_until = int(time.time()) + liveness_interval
@@ -1203,7 +1204,7 @@ class EtherealTestCase(unittest.TestCase):
         burn_signature = sign_message(burn_message_hash, invalid_signer)
 
         with self.assertRaises(VirtualMachineError):
-            self.ethereal.burn_with_signature(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
+            self.ethereal.burn(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
 
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, recipient)

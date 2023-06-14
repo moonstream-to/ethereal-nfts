@@ -215,7 +215,7 @@ abstract contract Ethereal is ERC721, EIP712 {
         );
     }
 
-    function burnWithSignature(
+    function burn(
         uint256 tokenId,
         address signer,
         bytes memory signature
