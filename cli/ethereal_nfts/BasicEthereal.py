@@ -140,6 +140,24 @@ class BasicEthereal:
         self.assert_contract_is_instantiated()
         return self.contract.balanceOf.call(owner, block_identifier=block_number)
 
+    def burn(
+        self,
+        token_id: int,
+        signer: ChecksumAddress,
+        signature: bytes,
+        transaction_config,
+    ) -> Any:
+        self.assert_contract_is_instantiated()
+        return self.contract.burn(token_id, signer, signature, transaction_config)
+
+    def burn_message_hash(
+        self, token_id: int, block_number: Optional[Union[str, int]] = "latest"
+    ) -> Any:
+        self.assert_contract_is_instantiated()
+        return self.contract.burnMessageHash.call(
+            token_id, block_identifier=block_number
+        )
+
     def create(
         self,
         recipient: ChecksumAddress,
@@ -442,6 +460,30 @@ def handle_balance_of(args: argparse.Namespace) -> None:
     print(result)
 
 
+def handle_burn(args: argparse.Namespace) -> None:
+    network.connect(args.network)
+    contract = BasicEthereal(args.address)
+    transaction_config = get_transaction_config(args)
+    result = contract.burn(
+        token_id=args.token_id,
+        signer=args.signer_arg,
+        signature=args.signature,
+        transaction_config=transaction_config,
+    )
+    print(result)
+    if args.verbose:
+        print(result.info())
+
+
+def handle_burn_message_hash(args: argparse.Namespace) -> None:
+    network.connect(args.network)
+    contract = BasicEthereal(args.address)
+    result = contract.burn_message_hash(
+        token_id=args.token_id, block_number=args.block_number
+    )
+    print(result)
+
+
 def handle_create(args: argparse.Namespace) -> None:
     network.connect(args.network)
     contract = BasicEthereal(args.address)
@@ -711,6 +753,24 @@ def generate_cli() -> argparse.ArgumentParser:
     add_default_arguments(balance_of_parser, False)
     balance_of_parser.add_argument("--owner", required=True, help="Type: address")
     balance_of_parser.set_defaults(func=handle_balance_of)
+
+    burn_parser = subcommands.add_parser("burn")
+    add_default_arguments(burn_parser, True)
+    burn_parser.add_argument(
+        "--token-id", required=True, help="Type: uint256", type=int
+    )
+    burn_parser.add_argument("--signer-arg", required=True, help="Type: address")
+    burn_parser.add_argument(
+        "--signature", required=True, help="Type: bytes", type=bytes_argument_type
+    )
+    burn_parser.set_defaults(func=handle_burn)
+
+    burn_message_hash_parser = subcommands.add_parser("burn-message-hash")
+    add_default_arguments(burn_message_hash_parser, False)
+    burn_message_hash_parser.add_argument(
+        "--token-id", required=True, help="Type: uint256", type=int
+    )
+    burn_message_hash_parser.set_defaults(func=handle_burn_message_hash)
 
     create_parser = subcommands.add_parser("create")
     add_default_arguments(create_parser, True)
