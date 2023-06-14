@@ -1024,6 +1024,190 @@ class EtherealTestCase(unittest.TestCase):
         with self.assertRaises(VirtualMachineError):
             self.ethereal.destroy(token_id, transaction_config={"from": recipient_account})
 
+    def test_ethereal_nft_can_be_burned_with_signature(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT can be burned with a signature from the contract owner.
+        """
+        liveness_interval = 3600
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 58
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        create_message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        create_signature = sign_message(create_message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=create_signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        burn_message_hash = self.ethereal.burn_message_hash(
+            token_id = token_id
+        )
+
+        burn_signature = sign_message(burn_message_hash, signer)
+
+        self.ethereal.burn_with_signature(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+ 
+    def test_ethereal_nft_cannot_be_burned_with_invalid_signer(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT cannot be burned if owner isn't the signer.
+        """
+        liveness_interval = 3600
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 58
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        create_message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        create_signature = sign_message(create_message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=create_signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        burn_message_hash = self.ethereal.burn_message_hash(
+            token_id = token_id
+        )
+
+        invalid_signer = invalid_signer = accounts.add()
+        burn_signature = sign_message(burn_message_hash, invalid_signer)
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.burn_with_signature(token_id, invalid_signer, burn_signature, transaction_config={"from": recipient_account})
+
+        token_owner_2 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_2, recipient)
+
+    def test_ethereal_nft_cannot_be_burned_with_invalid_signerature(
+        self,
+    ):
+        """
+        Tests that an Ethereal NFT can be burned when we lie about the signer.
+        """
+        liveness_interval = 3600
+
+        recipient_account = accounts[1]
+        recipient = recipient_account.address
+        token_id = 58
+        source_id = 1
+        source_token_id = token_id
+        live_until = int(time.time()) + liveness_interval
+        metadata_uri = f"https://example.com/source_nfts/{token_id}.json"
+
+        create_message_hash = self.ethereal.create_message_hash(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+        )
+
+        signer = self.signers[source_id][0]
+
+        create_signature = sign_message(create_message_hash, signer)
+
+        # If a token has not been minted, the `ownerOf` function on the OpenZeppelin ERC721 implementation
+        # reverts.
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.owner_of(token_id)
+
+        self.ethereal.create(
+            recipient=recipient,
+            token_id=token_id,
+            source_id=source_id,
+            source_token_id=source_token_id,
+            live_until=live_until,
+            metadata_uri=metadata_uri,
+            signer=signer.address,
+            signature=create_signature,
+            transaction_config={"from": recipient_account},
+        )
+
+        token_owner_1 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_1, recipient)
+
+        burn_message_hash = self.ethereal.burn_message_hash(
+            token_id = token_id
+        )
+
+        invalid_signer = invalid_signer = accounts.add()
+        burn_signature = sign_message(burn_message_hash, invalid_signer)
+
+        with self.assertRaises(VirtualMachineError):
+            self.ethereal.burn_with_signature(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
+
+        token_owner_2 = self.ethereal.owner_of(token_id)
+        self.assertEqual(token_owner_2, recipient)
+
 if __name__ == "__main__":
     unittest.main()
 

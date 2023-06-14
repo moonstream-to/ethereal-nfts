@@ -49,13 +49,19 @@ abstract contract Ethereal is ERC721, EIP712 {
     );
     event Destroyed(uint256 indexed tokenId, address indexed destroyer);
 
-    error InvalidSignature(
+    error InvalidCreateSignature(
         address recipient,
         uint256 tokenId,
         uint256 sourceId,
         uint256 sourceTokenId,
         uint256 liveUntil,
         string metadataURI,
+        address signer,
+        bytes32 messageHash,
+        bytes signature
+    );
+    error InvalidBurnSignature(
+        uint256 tokenId,
         address signer,
         bytes32 messageHash,
         bytes signature
@@ -119,6 +125,13 @@ abstract contract Ethereal is ERC721, EIP712 {
         return _hashTypedDataV4(structHash);
     }
 
+    function burnMessageHash(uint256 tokenId) public view returns (bytes32) {
+        bytes32 structHash = keccak256(
+            abi.encode(keccak256("BurnPayload(uint256 tokenId)"), tokenId)
+        );
+        return _hashTypedDataV4(structHash);
+    }
+
     function create(
         address recipient,
         uint256 tokenId,
@@ -147,7 +160,7 @@ abstract contract Ethereal is ERC721, EIP712 {
             signature
         );
         if (!signatureIsValid) {
-            revert InvalidSignature(
+            revert InvalidCreateSignature(
                 recipient,
                 tokenId,
                 sourceId,
@@ -202,6 +215,35 @@ abstract contract Ethereal is ERC721, EIP712 {
         );
     }
 
+    function burnWithSignature(
+        uint256 tokenId,
+        address signer,
+        bytes memory signature
+    ) external {
+        if (tokenId == 0) {
+            revert InvalidTokenID(tokenId);
+        }
+        bytes32 messageHash = burnMessageHash(tokenId);
+        bool signatureIsValid = SignatureChecker.isValidSignatureNow(
+            signer,
+            messageHash,
+            signature
+        );
+        if (!signatureIsValid) {
+            revert InvalidBurnSignature(
+                tokenId,
+                signer,
+                messageHash,
+                signature
+            );
+        }
+        uint256 sourceId = Source[tokenId];
+        if (!isSignerValidForSource(signer, sourceId)) {
+            revert InvalidSignerForSource(signer, sourceId);
+        }
+        _burn(tokenId);
+    }
+
     function destroy(uint256 tokenId) public {
         if (Source[tokenId] == 0) {
             revert TokenDoesNotExist(tokenId);
@@ -210,6 +252,11 @@ abstract contract Ethereal is ERC721, EIP712 {
             revert TokenNotExpired(tokenId, LiveUntil[tokenId]);
         }
         _burn(tokenId);
+    }
+
+    function _burn(uint256 tokenId) internal override {
+        super._burn(tokenId);
+
         MetadataURI[tokenId] = "";
         LiveUntil[tokenId] = 0;
         CurrentEtherealTokenID[Source[tokenId]][SourceTokenID[tokenId]] = 0;
