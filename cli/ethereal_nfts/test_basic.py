@@ -58,8 +58,7 @@ class EtherealTestCase(unittest.TestCase):
         # Supports IERC721Metadata
         self.assertTrue(self.ethereal.supports_interface("0x5b5e139f"))
         # Supports IEthereal
-        self.assertTrue(self.ethereal.supports_interface("0x8737034c"))
-
+        self.assertTrue(self.ethereal.supports_interface("0xf246fa58"))
 
     def test_create(self):
         """
@@ -1024,7 +1023,6 @@ class EtherealTestCase(unittest.TestCase):
                 token_id, transaction_config={"from": recipient_account}
             )
 
-
     def test_ethereal_nft_can_be_burned_with_signature(
         self,
     ):
@@ -1074,17 +1072,20 @@ class EtherealTestCase(unittest.TestCase):
         token_owner_1 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_1, random_account)
 
-        burn_message_hash = self.ethereal.burn_message_hash(
-            token_id = token_id
-        )
+        burn_message_hash = self.ethereal.burn_message_hash(token_id=token_id)
 
         burn_signature = sign_message(burn_message_hash, signer)
 
-        self.ethereal.burn(token_id, signer.address, burn_signature, transaction_config={"from": random_account})
+        self.ethereal.burn(
+            token_id,
+            signer.address,
+            burn_signature,
+            transaction_config={"from": random_account},
+        )
 
         with self.assertRaises(VirtualMachineError):
             self.ethereal.owner_of(token_id)
- 
+
     def test_ethereal_nft_cannot_be_burned_with_invalid_signer(
         self,
     ):
@@ -1134,15 +1135,18 @@ class EtherealTestCase(unittest.TestCase):
         token_owner_1 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_1, recipient)
 
-        burn_message_hash = self.ethereal.burn_message_hash(
-            token_id = token_id
-        )
+        burn_message_hash = self.ethereal.burn_message_hash(token_id=token_id)
 
         invalid_signer = invalid_signer = accounts.add()
         burn_signature = sign_message(burn_message_hash, invalid_signer)
 
         with self.assertRaises(VirtualMachineError):
-            self.ethereal.burn(token_id, invalid_signer.address, burn_signature, transaction_config={"from": recipient_account})
+            self.ethereal.burn(
+                token_id,
+                invalid_signer.address,
+                burn_signature,
+                transaction_config={"from": recipient_account},
+            )
 
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, recipient)
@@ -1196,15 +1200,18 @@ class EtherealTestCase(unittest.TestCase):
         token_owner_1 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_1, recipient)
 
-        burn_message_hash = self.ethereal.burn_message_hash(
-            token_id = token_id
-        )
+        burn_message_hash = self.ethereal.burn_message_hash(token_id=token_id)
 
         invalid_signer = invalid_signer = accounts.add()
         burn_signature = sign_message(burn_message_hash, invalid_signer)
 
         with self.assertRaises(VirtualMachineError):
-            self.ethereal.burn(token_id, signer.address, burn_signature, transaction_config={"from": recipient_account})
+            self.ethereal.burn(
+                token_id,
+                signer.address,
+                burn_signature,
+                transaction_config={"from": recipient_account},
+            )
 
         token_owner_2 = self.ethereal.owner_of(token_id)
         self.assertEqual(token_owner_2, recipient)
@@ -1260,16 +1267,22 @@ class EtherealTestCase(unittest.TestCase):
         self.assertEqual(token_owner_1, recipient)
 
         burn_message_hash = self.ethereal.burn_message_hash(
-            token_id = mismatched_token_id
+            token_id=mismatched_token_id
         )
 
         burn_signature = sign_message(burn_message_hash, signer)
 
         with self.assertRaises(VirtualMachineError):
-            self.ethereal.burn(token_id, signer, burn_signature, transaction_config={"from": recipient_account})
+            self.ethereal.burn(
+                token_id,
+                signer,
+                burn_signature,
+                transaction_config={"from": recipient_account},
+            )
 
         token_owner_2 = self.ethereal.owner_of(token_id)
-        self.assertEqual(token_owner_2, recipient)        
+        self.assertEqual(token_owner_2, recipient)
+
 
 if __name__ == "__main__":
     unittest.main()
