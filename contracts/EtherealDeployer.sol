@@ -73,6 +73,8 @@ contract EtherealDeployer {
             name_arg,
             symbol_arg
         );
+        // When the contract is instantiated, the EtherealDeployer contract is its owner. We must explicitly
+        // transfer ownership to the intended owner.
         deployedContract.transferOwnership(owner);
         result = address(deployedContract);
         emit EtherealDeployed(result);
