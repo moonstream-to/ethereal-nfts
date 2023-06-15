@@ -65,3 +65,20 @@ func PrivateKeyFromKeystoreFile(keystoreFile, password string, prompt bool) (*ec
 	key, err := keystore.DecryptKey(keystoreContent, password)
 	return key.PrivateKey, err
 }
+
+// Signs bytes using a private key and return the signature.
+// The "sensible" parameter refers to the v-byte of the signature. If it is true, then the v-byte will
+// be 0 or 1. Default should be sensible=false. For more information look at comment in the function implementation.
+func SignRawMessage(message []byte, key *ecdsa.PrivateKey, sensible bool) ([]byte, error) {
+	signature, err := crypto.Sign(message, key)
+	if !sensible {
+		// This refers to a bug in an early Ethereum client implementation where the v parameter byte was
+		// shifted by 27: https://github.com/ethereum/go-ethereum/issues/2053
+		// Default for callers should be NOT sensible.
+		// Defensively, we only shift if the 65th byte is 0 or 1.
+		if signature[64] < 2 {
+			signature[64] += 27
+		}
+	}
+	return signature, err
+}

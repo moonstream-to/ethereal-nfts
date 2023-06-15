@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"math/big"
 	"net/http"
 
@@ -8,6 +10,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
+
+var UnauthorizedRequest error = errors.New("unauthorized request")
 
 type AddressResponse struct {
 	Address string `json:"address"`
@@ -22,29 +26,87 @@ type CreateMessageHashRequest struct {
 	MetadataURI   string `json:"metadataURI"`
 }
 
-type ValidateRequest struct {
+type AuthorizationRequest struct {
 	CreateMessageHashRequest
-	AuthorizationRequest string `json:"authorizationRequest"`
+	AuthorizationRequest interface{} `json:"authorizationRequest"`
 }
 
 type ValidateResponse struct {
-	Request *ValidateRequest `json:"request"`
-	Valid   bool             `json:"valid"`
+	Request *AuthorizationRequest `json:"request"`
+	Valid   bool                  `json:"valid"`
+}
+
+type AuthorizationResponse struct {
+	Request   *AuthorizationRequest `json:"request"`
+	Signature string                `json:"signature"`
 }
 
 type Relayer interface {
 	ConfigureFromEnv() error
 	Status() ([]byte, error)
 	Address() (common.Address, error)
-	Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorization_request string) (bool, error)
+	Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationRequest interface{}) (bool, error)
 	CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string) ([]byte, error)
-	Authorize(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string) ([]byte, error)
+	Authorize(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationRequest interface{}) ([]byte, error)
 
 	StatusHandler(w http.ResponseWriter, r *http.Request)
 	AddressHandler(w http.ResponseWriter, r *http.Request)
 	ValidateHandler(w http.ResponseWriter, r *http.Request)
 	CreateMessageHashHandler(w http.ResponseWriter, r *http.Request)
 	AuthorizeHandler(w http.ResponseWriter, r *http.Request)
+}
+
+type RelayerFunctionParameters struct {
+	Recipient            common.Address
+	TokenID              *big.Int
+	SourceID             *big.Int
+	SourceTokenID        *big.Int
+	LiveUntil            *big.Int
+	MetadataURI          string
+	AuthorizationRequest interface{}
+}
+
+func (r *RelayerFunctionParameters) ParseCreateMessageHashRequest(request *CreateMessageHashRequest) error {
+	recipient := common.HexToAddress(request.Recipient)
+
+	tokenID, parseOK := new(big.Int).SetString(request.TokenID, 0)
+	if !parseOK {
+		return fmt.Errorf("Error parsing tokenID: %s", request.TokenID)
+	}
+
+	sourceID, parseOK := new(big.Int).SetString(request.SourceID, 0)
+	if !parseOK {
+		return fmt.Errorf("Error parsing sourceID: %s", request.SourceID)
+	}
+
+	sourceTokenID, parseOK := new(big.Int).SetString(request.SourceTokenID, 0)
+	if !parseOK {
+		return fmt.Errorf("Error parsing sourceTokenID: %s", request.SourceTokenID)
+	}
+
+	liveUntil, parseOK := new(big.Int).SetString(request.LiveUntil, 0)
+	if !parseOK {
+		return fmt.Errorf("Error parsing liveUntil: %s", request.LiveUntil)
+	}
+
+	r.Recipient = recipient
+	r.TokenID = tokenID
+	r.SourceID = sourceID
+	r.SourceTokenID = sourceTokenID
+	r.LiveUntil = liveUntil
+	r.MetadataURI = request.MetadataURI
+
+	return nil
+}
+
+func (r *RelayerFunctionParameters) ParseAuthorizationRequest(request *AuthorizationRequest) error {
+	if err := r.ParseCreateMessageHashRequest(&request.CreateMessageHashRequest); err != nil {
+		return err
+	}
+
+	r.AuthorizationRequest = request.AuthorizationRequest
+
+	return nil
 }
 
 var EIP712Domain []apitypes.Type = []apitypes.Type{

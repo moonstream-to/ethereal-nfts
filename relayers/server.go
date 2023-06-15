@@ -27,8 +27,7 @@ func CreateServer(relayerType, bindAddress string) (*http.Server, error) {
 	mux.HandleFunc("/address", relayer.AddressHandler)
 	mux.HandleFunc("/validate", relayer.ValidateHandler)
 	mux.HandleFunc("/create_message_hash", relayer.CreateMessageHashHandler)
-	// TODO:
-	// - /authorize
+	mux.HandleFunc("/authorize", relayer.AuthorizeHandler)
 
 	server = &http.Server{
 		Addr:    bindAddress,
