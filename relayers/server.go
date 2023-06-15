@@ -40,6 +40,9 @@ func CreateServer(relayerType, bindAddress string) (*http.Server, error) {
 }
 
 func RunServer(relayerType, bindAddress string) error {
+	if bindAddress == "" {
+		bindAddress = ":3743"
+	}
 	server, serverCreationError := CreateServer(relayerType, bindAddress)
 	if serverCreationError != nil {
 		return serverCreationError
