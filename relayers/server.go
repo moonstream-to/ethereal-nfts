@@ -23,13 +23,12 @@ func CreateServer(relayerType, bindAddress string) (*http.Server, error) {
 
 	mux := http.NewServeMux()
 
-	// Relayer endpoints:
-	// - /status
-	// - /validate
-	// - /authorize
-
 	mux.HandleFunc("/status", relayer.StatusHandler)
 	mux.HandleFunc("/address", relayer.AddressHandler)
+	mux.HandleFunc("/validate", relayer.ValidateHandler)
+	// TODO:
+	// - /payload
+	// - /authorize
 
 	server = &http.Server{
 		Addr:    bindAddress,
