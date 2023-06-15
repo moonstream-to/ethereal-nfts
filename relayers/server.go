@@ -5,37 +5,31 @@ import (
 	"net/http"
 )
 
-func CreateServer(bindAddress string) (*http.Server, error) {
+func CreateServer(relayerType, bindAddress string) (*http.Server, error) {
 	var server *http.Server
+	var relayer Relayer
 
-	validator := ERC721Validator{}
-	validatorConfigurationErr := validator.ConfigureFromEnv()
-	if validatorConfigurationErr != nil {
-		return server, validatorConfigurationErr
+	switch relayerType {
+	case "erc721":
+		relayer = &ERC721Relayer{}
+	default:
+		return server, fmt.Errorf("unknown relayer type: %s", relayerType)
+	}
+
+	relayerConfigurationErr := relayer.ConfigureFromEnv()
+	if relayerConfigurationErr != nil {
+		return server, relayerConfigurationErr
 	}
 
 	mux := http.NewServeMux()
 
-	// Validator endpoints:
-	// - /validator/status
-	// - /validator/validate
-	//
-	// Authorizer endpoints:
-	// - /authorizer/status
-	//
 	// Relayer endpoints:
 	// - /status
+	// - /validate
 	// - /authorize
 
-	mux.HandleFunc("/validator/status", func(w http.ResponseWriter, r *http.Request) {
-		statusJSON, err := validator.Status()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		_, _ = w.Write(statusJSON)
-	})
+	mux.HandleFunc("/status", relayer.StatusHandler)
+	mux.HandleFunc("/address", relayer.AddressHandler)
 
 	server = &http.Server{
 		Addr:    bindAddress,
@@ -45,8 +39,8 @@ func CreateServer(bindAddress string) (*http.Server, error) {
 	return server, nil
 }
 
-func RunServer(bindAddress string) error {
-	server, serverCreationError := CreateServer(bindAddress)
+func RunServer(relayerType, bindAddress string) error {
+	server, serverCreationError := CreateServer(relayerType, bindAddress)
 	if serverCreationError != nil {
 		return serverCreationError
 	}
