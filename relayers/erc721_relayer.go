@@ -136,11 +136,6 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 		return false, contractErr
 	}
 
-	fmt.Printf("Token ID: %s\n", tokenID.String())
-	fmt.Printf("Source Token Address: %s\n", contractAddress.Hex())
-	fmt.Printf("Source Token ID: %s\n", sourceTokenID.String())
-	fmt.Printf("Live Until: %s\n", liveUntil.String())
-
 	callOpts := &bind.CallOpts{Pending: false}
 
 	owner, callErr := contract.OwnerOf(callOpts, sourceTokenID)
