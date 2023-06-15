@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/big"
 	"net/http"
 
@@ -69,8 +68,6 @@ func CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenI
 		{Name: "metadataURI", Type: "string"},
 	}
 
-	fmt.Printf("CreateMessageHash -- recipient = %s, tokenID = %s, sourceID = %s, sourceTokenID = %s, liveUntil = %s, metadataURI = %s, chainID = %s, verifyingContractAddress = %s\n", recipient.Hex(), tokenID.String(), sourceID.String(), sourceTokenID.String(), liveUntil.String(), metadataURI, chainID.String(), verifyingContractAddress.Hex())
-
 	// Inspired by: https://medium.com/alpineintel/issuing-and-verifying-eip-712-challenges-with-go-32635ca78aaf
 	data := apitypes.TypedData{
 		Types: apitypes.Types{
@@ -93,9 +90,6 @@ func CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenI
 			"metadataURI":   metadataURI,
 		},
 	}
-
-	fmt.Println(data)
-	fmt.Println(data.Domain.ChainId)
 
 	messageHash, _, err := apitypes.TypedDataAndHash(data)
 	return messageHash, err
