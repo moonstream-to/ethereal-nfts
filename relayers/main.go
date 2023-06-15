@@ -75,7 +75,7 @@ func CreateServeCommand() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&relayerType, "relayer", "r", "", "Type of relayer you would like to serve. Choices: \"erc721\".")
-	cmd.Flags().StringVarP(&bindAddress, "bind", "b", "", "Address to bind the server to. For example, to bind to port 3743, you would use --bind \":3743\"")
+	cmd.Flags().StringVarP(&bindAddress, "bind", "b", "", "Address to bind the server to. For example, to bind to port 3743, you would use --bind \":3743\". Default: \":3743\".")
 
 	return cmd
 }
