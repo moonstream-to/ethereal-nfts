@@ -26,6 +26,9 @@ type ERC721RelayerStatus struct {
 
 func (relayer *ERC721Relayer) ConfigureFromEnv() error {
 	relayer.HTTPProviderURL = os.Getenv("RELAYERS_ERC721_HTTP_PROVIDER_URL")
+	if relayer.HTTPProviderURL == "" {
+		return errors.New("RELAYERS_ERC721_HTTP_PROVIDER_URL must be set")
+	}
 
 	client, err := ethclient.Dial(relayer.HTTPProviderURL)
 	if err != nil {
