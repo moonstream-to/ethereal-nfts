@@ -156,7 +156,7 @@ func (relayer *ERC721Relayer) Authorize(recipient common.Address, tokenID, sourc
 		return []byte{}, validationErr
 	}
 	if !valid {
-		return []byte{}, UnauthorizedRequest
+		return []byte{}, ErrUnauthorizedRequest
 	}
 
 	messageHash, messageHashErr := relayer.CreateMessageHash(recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI)

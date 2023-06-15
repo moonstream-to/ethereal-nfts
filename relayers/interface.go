@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
-var UnauthorizedRequest error = errors.New("unauthorized request")
+var ErrUnauthorizedRequest error = errors.New("unauthorized request")
 
 type AddressResponse struct {
 	Address string `json:"address"`
