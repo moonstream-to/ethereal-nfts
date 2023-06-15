@@ -38,6 +38,7 @@ type ValidateResponse struct {
 
 type AuthorizationResponse struct {
 	Request   *AuthorizationRequest `json:"request"`
+	Signer    string                `json:"signer"`
 	Signature string                `json:"signature"`
 }
 

@@ -290,6 +290,7 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 
 	response := AuthorizationResponse{
 		Request:   &requestParameters,
+		Signer:    relayer.address.Hex(),
 		Signature: hex.EncodeToString(signature),
 	}
 
