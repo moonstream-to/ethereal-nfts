@@ -13,8 +13,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
 /**
@@ -24,6 +26,18 @@ TODO:
 - [x] Write code which loads signing account into the ERC721Relayer
 - [x] Write Authorize, which signs a valid payload (it will do the validation check before authorizing).
 */
+
+var ERC721RelayerDomainName string = "ethereal-relayers-erc721"
+
+var ERC721RelayerAuthorizationPayload []apitypes.Type = []apitypes.Type{
+	{Name: "recipient", Type: "address"},
+	{Name: "tokenId", Type: "uint256"},
+	{Name: "sourceId", Type: "uint256"},
+	{Name: "sourceTokenId", Type: "uint256"},
+	{Name: "liveUntil", Type: "uint256"},
+	{Name: "metadataURI", Type: "string"},
+	{Name: "authorizeBefore", Type: "uint256"},
+}
 
 type ERC721Relayer struct {
 	HTTPProviderURL         string
@@ -40,6 +54,12 @@ type ERC721RelayerStatus struct {
 	BlockNumber             uint64         `json:"blockNumber"`
 	EtherealContractAddress common.Address `json:"etherealContractAddress"`
 	EtherealChainID         *big.Int       `json:"etherealChainID"`
+}
+
+type ERC721RelayerAuthorizationRequest struct {
+	AuthorizeBefore int64 `json:"authorizeBefore"`
+	// This signature is expected to include the JSON-represented CreateMessageHashRequest along with the additional "signBefore".
+	Signature []byte `json:"signature"`
 }
 
 func (relayer *ERC721Relayer) ConfigureFromEnv() error {
@@ -130,6 +150,43 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 		return false, errors.New("liveUntil must be greater than zero")
 	}
 
+	parsedAuthorizationRequest := authorizationRequest.(ERC721RelayerAuthorizationRequest)
+
+	data := apitypes.TypedData{
+		Types: apitypes.Types{
+			"EIP712Domain":         EIP712Domain,
+			"AuthorizationPayload": ERC721RelayerAuthorizationPayload,
+		},
+		PrimaryType: "AuthorizationPayload",
+		Domain: apitypes.TypedDataDomain{
+			Name: ERC721RelayerDomainName,
+			// Note: Retain same version as rest of codebase!
+			Version: EIP712DomainVersion,
+			ChainId: (*math.HexOrDecimal256)(relayer.SourceChainID),
+		},
+		Message: apitypes.TypedDataMessage{
+			"recipient":       recipient.Hex(),
+			"tokenId":         tokenID.String(),
+			"sourceId":        sourceID.String(),
+			"sourceTokenId":   sourceTokenID.String(),
+			"liveUntil":       liveUntil.String(),
+			"metadataURI":     metadataURI,
+			"authorizeBefore": parsedAuthorizationRequest.AuthorizeBefore,
+		},
+	}
+
+	messageHash, _, hashErr := apitypes.TypedDataAndHash(data)
+	if hashErr != nil {
+		return false, hashErr
+	}
+
+	signerPubkey, recoverErr := crypto.SigToPub(messageHash, parsedAuthorizationRequest.Signature)
+	if recoverErr != nil {
+		return false, recoverErr
+	}
+
+	signerAddress := crypto.PubkeyToAddress(*signerPubkey)
+
 	contractAddress := common.BigToAddress(sourceID)
 	contract, contractErr := NewERC721Contract(contractAddress, relayer.Web3Client)
 	if contractErr != nil {
@@ -143,7 +200,7 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 		return false, callErr
 	}
 
-	return recipient == owner, nil
+	return signerAddress == owner, nil
 }
 
 func (relayer *ERC721Relayer) CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string) ([]byte, error) {

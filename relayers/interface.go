@@ -117,19 +117,20 @@ var EIP712Domain []apitypes.Type = []apitypes.Type{
 	{Name: "verifyingContract", Type: "address"},
 }
 
+var CreatePayload []apitypes.Type = []apitypes.Type{
+	{Name: "recipient", Type: "address"},
+	{Name: "tokenId", Type: "uint256"},
+	{Name: "sourceId", Type: "uint256"},
+	{Name: "sourceTokenId", Type: "uint256"},
+	{Name: "liveUntil", Type: "uint256"},
+	{Name: "metadataURI", Type: "string"},
+}
+
 // These are meant to match the current version of the EIP712 domain in ../contracts/Ethereal.sol (see Ethereal constructor).
 var EIP712DomainName = "ethereal"
 var EIP712DomainVersion = "0.0.1"
 
 func CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, chainID *big.Int, verifyingContractAddress common.Address) ([]byte, error) {
-	var CreatePayload []apitypes.Type = []apitypes.Type{
-		{Name: "recipient", Type: "address"},
-		{Name: "tokenId", Type: "uint256"},
-		{Name: "sourceId", Type: "uint256"},
-		{Name: "sourceTokenId", Type: "uint256"},
-		{Name: "liveUntil", Type: "uint256"},
-		{Name: "metadataURI", Type: "string"},
-	}
 
 	// Inspired by: https://medium.com/alpineintel/issuing-and-verifying-eip-712-challenges-with-go-32635ca78aaf
 	data := apitypes.TypedData{
