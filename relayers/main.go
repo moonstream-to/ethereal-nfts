@@ -20,7 +20,9 @@
 package main
 
 import (
+	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -87,13 +89,63 @@ func CreateAuthorizationCommand() *cobra.Command {
 		Short: "Create an authorization message for a given source asset",
 	}
 
+	var erc721HashOnly bool
+	var erc721SourceChainID, erc721Recipient, erc721SourceContractAddress, erc721SourceTokenId, erc721DestinationAddress, erc721LiveUntil, erc721MetadataURI, erc721KeystoreFile string
 	erc721Cmd := &cobra.Command{
 		Use:   "erc721",
 		Short: "Create an authorization message for an ERC721 source contract",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// TODO(zomglings): All arguments required except --hash. Do the checks here.
+
+			chainID, parseOK := new(big.Int).SetString(erc721SourceChainID, 0)
+			if !parseOK {
+				return fmt.Errorf("could not parse chain ID:  %s", erc721SourceChainID)
+			}
+			request := &CreateMessageHashRequest{
+				Recipient:     erc721Recipient,
+				TokenID:       erc721SourceTokenId,
+				SourceID:      erc721SourceContractAddress,
+				SourceTokenID: erc721SourceTokenId,
+				LiveUntil:     erc721LiveUntil,
+				MetadataURI:   erc721MetadataURI,
+			}
+
+			var parameters RelayerFunctionParameters
+			parseErr := parameters.ParseCreateMessageHashRequest(request)
+			if parseErr != nil {
+				return parseErr
+			}
+
+			if erc721HashOnly {
+				messageHash, hashErr := ERC721AuthorizationPayloadHash(chainID, parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.LiveUntil.Int64())
+				if hashErr != nil {
+					return hashErr
+				}
+				cmd.Printf("Authorization message hash: %s\n", hex.EncodeToString(messageHash))
+			} else {
+				if erc721KeystoreFile == "" {
+					return fmt.Errorf("you must specify a keystore file to sign the authorization message with")
+				}
+
+				signature, signErr := ERC721SignAuthorizationPayload(erc721KeystoreFile, chainID, parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.LiveUntil.Int64())
+				if signErr != nil {
+					return signErr
+				}
+				cmd.Printf("Signature: %s\n", hex.EncodeToString(signature))
+			}
+
 			return nil
 		},
 	}
+	erc721Cmd.Flags().BoolVarP(&erc721HashOnly, "hash", "H", false, "Only output the hash of the authorization message, do not sign it.")
+	erc721Cmd.Flags().StringVarP(&erc721KeystoreFile, "keystore", "k", "", "Path to the keystore file containing the private key to sign the authorization message with.")
+	erc721Cmd.Flags().StringVarP(&erc721SourceChainID, "chain-id", "c", "", "Chain ID of the source chain. For example, for Ethereum mainnet, this would be \"1\".")
+	erc721Cmd.Flags().StringVarP(&erc721Recipient, "recipient", "r", "", "Address which can mint the Ethereal NFT on the target Ethereal.")
+	erc721Cmd.Flags().StringVarP(&erc721SourceContractAddress, "address", "a", "", "Address of the source contract. For example, for CryptoKitties, this would be \"0x06012c8cf97bead5deae237070f9587f8e7a266d\".")
+	erc721Cmd.Flags().StringVarP(&erc721SourceTokenId, "token-id", "t", "", "Token ID of the source token.")
+	erc721Cmd.Flags().StringVarP(&erc721DestinationAddress, "destination", "d", "", "Address of the target Ethereal contract.")
+	erc721Cmd.Flags().StringVarP(&erc721MetadataURI, "metadata-uri", "u", "", "URI of the metadata for the Ethereal.")
+	erc721Cmd.Flags().StringVarP(&erc721LiveUntil, "live-until", "l", "", "Unix timestamp before which the authorization is valid.")
 
 	cmd.AddCommand(erc721Cmd)
 

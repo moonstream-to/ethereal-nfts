@@ -152,7 +152,7 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 
 	parsedAuthorizationMessage := authorizationMessage.(ERC721RelayerAuthorizationMessage)
 
-	messageHash, hashErr := AuthorizationPayloadHash(relayer.SourceChainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, parsedAuthorizationMessage.AuthorizeBefore)
+	messageHash, hashErr := ERC721AuthorizationPayloadHash(relayer.SourceChainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, parsedAuthorizationMessage.AuthorizeBefore)
 
 	if hashErr != nil {
 		return false, hashErr
@@ -338,7 +338,7 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 	_, _ = w.Write(responseJSON)
 }
 
-func AuthorizationPayloadHash(chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
+func ERC721AuthorizationPayloadHash(chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
 	data := apitypes.TypedData{
 		Types: apitypes.Types{
 			"EIP712Domain":         EIP712Domain,
@@ -366,8 +366,8 @@ func AuthorizationPayloadHash(chainID *big.Int, recipient common.Address, tokenI
 	return messageHash, hashErr
 }
 
-func SignAuthorizationPayload(keystoreFile string, chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
-	messageHash, hashErr := AuthorizationPayloadHash(chainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, authorizeBefore)
+func ERC721SignAuthorizationPayload(keystoreFile string, chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
+	messageHash, hashErr := ERC721AuthorizationPayloadHash(chainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, authorizeBefore)
 	if hashErr != nil {
 		return []byte{}, hashErr
 	}

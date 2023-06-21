@@ -28,7 +28,7 @@ type CreateMessageHashRequest struct {
 
 type AuthorizationRequest struct {
 	CreateMessageHashRequest
-	AuthorizationRequest interface{} `json:"authorizationRequest"`
+	AuthorizationMessage interface{} `json:"authorizationMessage"`
 }
 
 type ValidateResponse struct {
@@ -105,7 +105,7 @@ func (r *RelayerFunctionParameters) ParseAuthorizationRequest(request *Authoriza
 		return err
 	}
 
-	r.AuthorizationMessage = request.AuthorizationRequest
+	r.AuthorizationMessage = request.AuthorizationMessage
 
 	return nil
 }
