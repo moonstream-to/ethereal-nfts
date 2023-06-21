@@ -46,7 +46,7 @@ type Relayer interface {
 	ConfigureFromEnv() error
 	Status() ([]byte, error)
 	Address() (common.Address, error)
-	Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationRequest interface{}) (bool, error)
+	Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationMessage interface{}) (bool, error)
 	CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string) ([]byte, error)
 	Authorize(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationRequest interface{}) ([]byte, error)
 
@@ -64,7 +64,7 @@ type RelayerFunctionParameters struct {
 	SourceTokenID        *big.Int
 	LiveUntil            *big.Int
 	MetadataURI          string
-	AuthorizationRequest interface{}
+	AuthorizationMessage interface{}
 }
 
 func (r *RelayerFunctionParameters) ParseCreateMessageHashRequest(request *CreateMessageHashRequest) error {
@@ -105,7 +105,7 @@ func (r *RelayerFunctionParameters) ParseAuthorizationRequest(request *Authoriza
 		return err
 	}
 
-	r.AuthorizationRequest = request.AuthorizationRequest
+	r.AuthorizationMessage = request.AuthorizationRequest
 
 	return nil
 }

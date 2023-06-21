@@ -46,8 +46,9 @@ func CreateRootCommand() *cobra.Command {
 
 	versionCmd := CreateVersionCommand()
 	serveCmd := CreateServeCommand()
+	authorizationCmd := CreateAuthorizationCommand()
 
-	cmd.AddCommand(versionCmd, serveCmd)
+	cmd.AddCommand(versionCmd, serveCmd, authorizationCmd)
 
 	return cmd
 }
@@ -76,6 +77,25 @@ func CreateServeCommand() *cobra.Command {
 
 	cmd.Flags().StringVarP(&relayerType, "relayer", "r", "", "Type of relayer you would like to serve. Choices: \"erc721\".")
 	cmd.Flags().StringVarP(&bindAddress, "bind", "b", "", "Address to bind the server to. For example, to bind to port 3743, you would use --bind \":3743\". Default: \":3743\".")
+
+	return cmd
+}
+
+func CreateAuthorizationCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "authorization",
+		Short: "Create an authorization message for a given source asset",
+	}
+
+	erc721Cmd := &cobra.Command{
+		Use:   "erc721",
+		Short: "Create an authorization message for an ERC721 source contract",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	cmd.AddCommand(erc721Cmd)
 
 	return cmd
 }

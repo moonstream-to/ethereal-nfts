@@ -56,7 +56,7 @@ type ERC721RelayerStatus struct {
 	EtherealChainID         *big.Int       `json:"etherealChainID"`
 }
 
-type ERC721RelayerAuthorizationRequest struct {
+type ERC721RelayerAuthorizationMessage struct {
 	AuthorizeBefore int64 `json:"authorizeBefore"`
 	// This signature is expected to include the JSON-represented CreateMessageHashRequest along with the additional "signBefore".
 	Signature []byte `json:"signature"`
@@ -136,7 +136,7 @@ func (relayer *ERC721Relayer) Address() (common.Address, error) {
 	return relayer.address, nil
 }
 
-func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationRequest interface{}) (bool, error) {
+func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationMessage interface{}) (bool, error) {
 	if sourceID.Cmp(big.NewInt(0)) <= 0 {
 		return false, errors.New("sourceID must be greater than zero")
 	}
@@ -150,37 +150,15 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 		return false, errors.New("liveUntil must be greater than zero")
 	}
 
-	parsedAuthorizationRequest := authorizationRequest.(ERC721RelayerAuthorizationRequest)
+	parsedAuthorizationMessage := authorizationMessage.(ERC721RelayerAuthorizationMessage)
 
-	data := apitypes.TypedData{
-		Types: apitypes.Types{
-			"EIP712Domain":         EIP712Domain,
-			"AuthorizationPayload": ERC721RelayerAuthorizationPayload,
-		},
-		PrimaryType: "AuthorizationPayload",
-		Domain: apitypes.TypedDataDomain{
-			Name: ERC721RelayerDomainName,
-			// Note: Retain same version as rest of codebase!
-			Version: EIP712DomainVersion,
-			ChainId: (*math.HexOrDecimal256)(relayer.SourceChainID),
-		},
-		Message: apitypes.TypedDataMessage{
-			"recipient":       recipient.Hex(),
-			"tokenId":         tokenID.String(),
-			"sourceId":        sourceID.String(),
-			"sourceTokenId":   sourceTokenID.String(),
-			"liveUntil":       liveUntil.String(),
-			"metadataURI":     metadataURI,
-			"authorizeBefore": parsedAuthorizationRequest.AuthorizeBefore,
-		},
-	}
+	messageHash, hashErr := AuthorizationPayloadHash(relayer.SourceChainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, parsedAuthorizationMessage.AuthorizeBefore)
 
-	messageHash, _, hashErr := apitypes.TypedDataAndHash(data)
 	if hashErr != nil {
 		return false, hashErr
 	}
 
-	signerPubkey, recoverErr := crypto.SigToPub(messageHash, parsedAuthorizationRequest.Signature)
+	signerPubkey, recoverErr := crypto.SigToPub(messageHash, parsedAuthorizationMessage.Signature)
 	if recoverErr != nil {
 		return false, recoverErr
 	}
@@ -207,8 +185,8 @@ func (relayer *ERC721Relayer) CreateMessageHash(recipient common.Address, tokenI
 	return CreateMessageHash(recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, relayer.EtherealChainID, relayer.EtherealContractAddress)
 }
 
-func (relayer *ERC721Relayer) Authorize(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationRequest interface{}) ([]byte, error) {
-	valid, validationErr := relayer.Validate(recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, authorizationRequest)
+func (relayer *ERC721Relayer) Authorize(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationMessage interface{}) ([]byte, error) {
+	valid, validationErr := relayer.Validate(recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, authorizationMessage)
 	if validationErr != nil {
 		return []byte{}, validationErr
 	}
@@ -273,7 +251,7 @@ func (relayer *ERC721Relayer) ValidateHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	valid, validationErr := relayer.Validate(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationRequest)
+	valid, validationErr := relayer.Validate(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
 	if validationErr != nil {
 		fmt.Println(validationErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -338,7 +316,7 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	signature, authorizationErr := relayer.Authorize(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationRequest)
+	signature, authorizationErr := relayer.Authorize(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
 	if authorizationErr != nil {
 		fmt.Println(authorizationErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -358,4 +336,48 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 	}
 
 	_, _ = w.Write(responseJSON)
+}
+
+func AuthorizationPayloadHash(chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
+	data := apitypes.TypedData{
+		Types: apitypes.Types{
+			"EIP712Domain":         EIP712Domain,
+			"AuthorizationPayload": ERC721RelayerAuthorizationPayload,
+		},
+		PrimaryType: "AuthorizationPayload",
+		Domain: apitypes.TypedDataDomain{
+			Name: ERC721RelayerDomainName,
+			// Note: Retain same version as rest of codebase!
+			Version: EIP712DomainVersion,
+			ChainId: (*math.HexOrDecimal256)(chainID),
+		},
+		Message: apitypes.TypedDataMessage{
+			"recipient":       recipient.Hex(),
+			"tokenId":         tokenID.String(),
+			"sourceId":        sourceID.String(),
+			"sourceTokenId":   sourceTokenID.String(),
+			"liveUntil":       liveUntil.String(),
+			"metadataURI":     metadataURI,
+			"authorizeBefore": authorizeBefore,
+		},
+	}
+
+	messageHash, _, hashErr := apitypes.TypedDataAndHash(data)
+	return messageHash, hashErr
+}
+
+func SignAuthorizationPayload(keystoreFile string, chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
+	messageHash, hashErr := AuthorizationPayloadHash(chainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, authorizeBefore)
+	if hashErr != nil {
+		return []byte{}, hashErr
+	}
+
+	privateKey, privateKeyErr := PrivateKeyFromKeystoreFile(keystoreFile, "", true)
+	if privateKeyErr != nil {
+		return []byte{}, privateKeyErr
+	}
+
+	signature, err := SignRawMessage(messageHash, privateKey, false)
+
+	return signature, err
 }
