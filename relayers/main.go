@@ -91,6 +91,7 @@ func CreateAuthorizationCommand() *cobra.Command {
 
 	var erc721HashOnly bool
 	var erc721SourceChainID, erc721Recipient, erc721SourceContractAddress, erc721SourceTokenId, erc721DestinationAddress, erc721LiveUntil, erc721MetadataURI, erc721KeystoreFile string
+	var erc721AuthorizeBefore int64
 	erc721Cmd := &cobra.Command{
 		Use:   "erc721",
 		Short: "Create an authorization message for an ERC721 source contract",
@@ -117,7 +118,7 @@ func CreateAuthorizationCommand() *cobra.Command {
 			}
 
 			if erc721HashOnly {
-				messageHash, hashErr := ERC721AuthorizationPayloadHash(chainID, parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.LiveUntil.Int64())
+				messageHash, hashErr := ERC721AuthorizationPayloadHash(chainID, parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, erc721AuthorizeBefore)
 				if hashErr != nil {
 					return hashErr
 				}
@@ -127,7 +128,7 @@ func CreateAuthorizationCommand() *cobra.Command {
 					return fmt.Errorf("you must specify a keystore file to sign the authorization message with")
 				}
 
-				signature, signErr := ERC721SignAuthorizationPayload(erc721KeystoreFile, chainID, parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.LiveUntil.Int64())
+				signature, signErr := ERC721SignAuthorizationPayload(erc721KeystoreFile, chainID, parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, erc721AuthorizeBefore)
 				if signErr != nil {
 					return signErr
 				}
@@ -145,7 +146,8 @@ func CreateAuthorizationCommand() *cobra.Command {
 	erc721Cmd.Flags().StringVarP(&erc721SourceTokenId, "token-id", "t", "", "Token ID of the source token.")
 	erc721Cmd.Flags().StringVarP(&erc721DestinationAddress, "destination", "d", "", "Address of the target Ethereal contract.")
 	erc721Cmd.Flags().StringVarP(&erc721MetadataURI, "metadata-uri", "u", "", "URI of the metadata for the Ethereal.")
-	erc721Cmd.Flags().StringVarP(&erc721LiveUntil, "live-until", "l", "", "Unix timestamp before which the authorization is valid.")
+	erc721Cmd.Flags().StringVarP(&erc721LiveUntil, "live-until", "l", "", "Unix timestamp until which the Ethereal is guaranteed to live.")
+	erc721Cmd.Flags().Int64VarP(&erc721AuthorizeBefore, "authorize-before", "b", 0, "Unix timestamp before which the authorization is valid.")
 
 	cmd.AddCommand(erc721Cmd)
 

@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"net/http"
 	"os"
@@ -59,7 +60,7 @@ type ERC721RelayerStatus struct {
 type ERC721RelayerAuthorizationMessage struct {
 	AuthorizeBefore int64 `json:"authorizeBefore"`
 	// This signature is expected to include the JSON-represented CreateMessageHashRequest along with the additional "signBefore".
-	Signature []byte `json:"signature"`
+	Signature string `json:"signature"`
 }
 
 func (relayer *ERC721Relayer) ConfigureFromEnv() error {
@@ -150,7 +151,17 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 		return false, errors.New("liveUntil must be greater than zero")
 	}
 
-	parsedAuthorizationMessage := authorizationMessage.(ERC721RelayerAuthorizationMessage)
+	var authorizationMessageBytes []byte
+	authorizationMessageBytes, marshalErr := json.Marshal(authorizationMessage)
+	if marshalErr != nil {
+		return false, marshalErr
+	}
+
+	var parsedAuthorizationMessage ERC721RelayerAuthorizationMessage
+	unmarshalErr := json.Unmarshal(authorizationMessageBytes, &parsedAuthorizationMessage)
+	if unmarshalErr != nil {
+		return false, unmarshalErr
+	}
 
 	messageHash, hashErr := ERC721AuthorizationPayloadHash(relayer.SourceChainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, parsedAuthorizationMessage.AuthorizeBefore)
 
@@ -158,12 +169,25 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 		return false, hashErr
 	}
 
-	signerPubkey, recoverErr := crypto.SigToPub(messageHash, parsedAuthorizationMessage.Signature)
+	signature, decodeErr := hex.DecodeString(parsedAuthorizationMessage.Signature)
+	if decodeErr != nil {
+		return false, decodeErr
+	}
+
+	// Normalize signature so that 27 -> 0, 28 -> 1.
+	// For more context: https://github.com/ethereum/go-ethereum/issues/2053
+	if signature[64] == 27 || signature[64] == 28 {
+		signature[64] -= 27
+	}
+
+	signerPubkey, recoverErr := crypto.SigToPub(messageHash, signature)
 	if recoverErr != nil {
 		return false, recoverErr
 	}
 
 	signerAddress := crypto.PubkeyToAddress(*signerPubkey)
+
+	fmt.Printf("signerAddress: %s\n", signerAddress.Hex())
 
 	contractAddress := common.BigToAddress(sourceID)
 	contract, contractErr := NewERC721Contract(contractAddress, relayer.Web3Client)
@@ -253,7 +277,7 @@ func (relayer *ERC721Relayer) ValidateHandler(w http.ResponseWriter, r *http.Req
 
 	valid, validationErr := relayer.Validate(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
 	if validationErr != nil {
-		fmt.Println(validationErr.Error())
+		log.Printf("Validation error: %s\n", validationErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -265,6 +289,7 @@ func (relayer *ERC721Relayer) ValidateHandler(w http.ResponseWriter, r *http.Req
 
 	responseJSON, marshalErr := json.Marshal(response)
 	if marshalErr != nil {
+		log.Printf("Error marshaling response: %s\n", marshalErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -291,7 +316,7 @@ func (relayer *ERC721Relayer) CreateMessageHashHandler(w http.ResponseWriter, r 
 
 	messageHash, messageHashErr := relayer.CreateMessageHash(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI)
 	if messageHashErr != nil {
-		fmt.Println(messageHashErr.Error())
+		log.Println(messageHashErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -316,21 +341,29 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	messageHash, hashErr := relayer.CreateMessageHash(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI)
+	if hashErr != nil {
+		log.Printf("Hash error: %s\n", hashErr.Error())
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+
 	signature, authorizationErr := relayer.Authorize(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
 	if authorizationErr != nil {
-		fmt.Println(authorizationErr.Error())
+		log.Printf("Authorization error: %s\n", authorizationErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
 	response := AuthorizationResponse{
-		Request:   &requestParameters,
-		Signer:    relayer.address.Hex(),
-		Signature: hex.EncodeToString(signature),
+		Request:           &requestParameters,
+		CreateMessageHash: hex.EncodeToString(messageHash),
+		Signer:            relayer.address.Hex(),
+		Signature:         hex.EncodeToString(signature),
 	}
 
 	responseJSON, marshalErr := json.Marshal(response)
 	if marshalErr != nil {
+		log.Printf("Marshal error: %s\n", marshalErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -348,17 +381,18 @@ func ERC721AuthorizationPayloadHash(chainID *big.Int, recipient common.Address, 
 		Domain: apitypes.TypedDataDomain{
 			Name: ERC721RelayerDomainName,
 			// Note: Retain same version as rest of codebase!
-			Version: EIP712DomainVersion,
-			ChainId: (*math.HexOrDecimal256)(chainID),
+			Version:           EIP712DomainVersion,
+			ChainId:           (*math.HexOrDecimal256)(chainID),
+			VerifyingContract: ZERO_ADDRESS.String(),
 		},
 		Message: apitypes.TypedDataMessage{
 			"recipient":       recipient.Hex(),
 			"tokenId":         tokenID.String(),
 			"sourceId":        sourceID.String(),
 			"sourceTokenId":   sourceTokenID.String(),
-			"liveUntil":       liveUntil.String(),
+			"liveUntil":       (*math.HexOrDecimal256)(liveUntil),
 			"metadataURI":     metadataURI,
-			"authorizeBefore": authorizeBefore,
+			"authorizeBefore": math.NewHexOrDecimal256(authorizeBefore),
 		},
 	}
 
