@@ -20,14 +20,6 @@ import (
 	"github.com/ethereum/go-ethereum/signer/core/apitypes"
 )
 
-/**
-TODO:
-- [ ] Validate should take an EIP712 message and signature, and verify that the signature is valid and that the signer is the owner of the source token.
-- [x] Write CreateMessageHash function, which calculates the EIP712 message hash for Ethereal creation.
-- [x] Write code which loads signing account into the ERC721Relayer
-- [x] Write Authorize, which signs a valid payload (it will do the validation check before authorizing).
-*/
-
 var ERC721RelayerDomainName string = "ethereal-relayers-erc721"
 
 var ERC721RelayerAuthorizationPayload []apitypes.Type = []apitypes.Type{
