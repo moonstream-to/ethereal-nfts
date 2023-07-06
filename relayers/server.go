@@ -70,7 +70,20 @@ func logMiddleware(next http.Handler) http.Handler {
 		}
 		logStr := fmt.Sprintf("relayer-%s %s %s - %s", ACTIVE_RELAYER_TYPE, ip, r.Method, r.URL.Path)
 
-		log.Printf("%s\n", logStr)
+		// Parse body and log detailed authorize message
+		pathSlice := strings.Split(r.URL.Path, "/")
+		if pathSlice[len(pathSlice)-1] == "authorize" {
+			var authorizeRequest AuthorizationRequest
+			err := json.Unmarshal(body, &authorizeRequest)
+			if err != nil {
+				log.Printf("unable to parse authorize message body, err: %s", err.Error())
+			} else {
+				logStr += fmt.Sprintf(" recipient:%s", authorizeRequest.Recipient)
+				logStr += fmt.Sprintf(" sourceID:%s ", authorizeRequest.SourceID)
+			}
+		}
+
+		log.Printf("%s", logStr)
 	})
 }
 

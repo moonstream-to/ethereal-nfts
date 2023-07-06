@@ -129,41 +129,46 @@ func (relayer *ERC721Relayer) Address() (common.Address, error) {
 	return relayer.address, nil
 }
 
-func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationMessage interface{}) (bool, error) {
+// Validate handles signature validation.
+// Important! All errors going to client response, do not pass signatures and valuable information.
+func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationMessage interface{}) error {
 	if sourceID.Cmp(big.NewInt(0)) <= 0 {
-		return false, errors.New("sourceID must be greater than zero")
+		return errors.New("sourceID must be greater than zero")
 	}
 	if sourceTokenID.Cmp(big.NewInt(0)) <= 0 {
-		return false, errors.New("sourceTokenID must be greater than zero")
+		return errors.New("sourceTokenID must be greater than zero")
 	}
 	if tokenID.Cmp(big.NewInt(0)) <= 0 {
-		return false, errors.New("tokenID must be greater than zero")
+		return errors.New("tokenID must be greater than zero")
 	}
 	if liveUntil.Cmp(big.NewInt(0)) <= 0 {
-		return false, errors.New("liveUntil must be greater than zero")
+		return errors.New("liveUntil must be greater than zero")
 	}
 
 	var authorizationMessageBytes []byte
 	authorizationMessageBytes, marshalErr := json.Marshal(authorizationMessage)
 	if marshalErr != nil {
-		return false, marshalErr
+		log.Printf("authorizationMessageBytes marshal error, err: %s", marshalErr.Error())
+		return errors.New("AuthorizationMessage parse error")
 	}
 
 	var parsedAuthorizationMessage ERC721RelayerAuthorizationMessage
 	unmarshalErr := json.Unmarshal(authorizationMessageBytes, &parsedAuthorizationMessage)
 	if unmarshalErr != nil {
-		return false, unmarshalErr
+		log.Printf("parsedAuthorizationMessage unmarshal error, err: %s", unmarshalErr.Error())
+		return errors.New("authorizationMessage parse error")
 	}
 
 	messageHash, hashErr := ERC721AuthorizationPayloadHash(relayer.SourceChainID, recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, parsedAuthorizationMessage.AuthorizeBefore)
-
 	if hashErr != nil {
-		return false, hashErr
+		log.Printf("messageHash generation error, err: %s", hashErr.Error())
+		return errors.New("messageHash generation error")
 	}
 
 	signature, decodeErr := hex.DecodeString(parsedAuthorizationMessage.Signature)
 	if decodeErr != nil {
-		return false, decodeErr
+		log.Printf("signature decode error, err: %s", decodeErr.Error())
+		return errors.New("signature decode error")
 	}
 
 	// Normalize signature so that 27 -> 0, 28 -> 1.
@@ -174,27 +179,32 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 
 	signerPubkey, recoverErr := crypto.SigToPub(messageHash, signature)
 	if recoverErr != nil {
-		return false, recoverErr
+		log.Printf("signerPubkey restoration error, err: %s", recoverErr.Error())
+		return errors.New("Unable to get public key from signature")
 	}
 
 	signerAddress := crypto.PubkeyToAddress(*signerPubkey)
 
-	fmt.Printf("signerAddress: %s\n", signerAddress.Hex())
-
 	contractAddress := common.BigToAddress(sourceID)
 	contract, contractErr := NewERC721Contract(contractAddress, relayer.Web3Client)
 	if contractErr != nil {
-		return false, contractErr
+		log.Printf("contract instance creation error, err: %s", contractErr.Error())
+		return errors.New("Internal server error")
 	}
 
 	callOpts := &bind.CallOpts{Pending: false}
 
 	owner, callErr := contract.OwnerOf(callOpts, sourceTokenID)
 	if callErr != nil {
-		return false, callErr
+		log.Printf("contract owner check error, err: %s", callErr.Error())
+		return errors.New("Internal server error")
 	}
 
-	return signerAddress == owner, nil
+	if signerAddress != owner {
+		return errors.New("Token owner not verified")
+	}
+
+	return nil
 }
 
 func (relayer *ERC721Relayer) CreateMessageHash(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string) ([]byte, error) {
@@ -202,14 +212,6 @@ func (relayer *ERC721Relayer) CreateMessageHash(recipient common.Address, tokenI
 }
 
 func (relayer *ERC721Relayer) Authorize(recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizationMessage interface{}) ([]byte, error) {
-	valid, validationErr := relayer.Validate(recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI, authorizationMessage)
-	if validationErr != nil {
-		return []byte{}, validationErr
-	}
-	if !valid {
-		return []byte{}, ErrUnauthorizedRequest
-	}
-
 	messageHash, messageHashErr := relayer.CreateMessageHash(recipient, tokenID, sourceID, sourceTokenID, liveUntil, metadataURI)
 	if messageHashErr != nil {
 		return []byte{}, messageHashErr
@@ -241,13 +243,8 @@ func (relayer *ERC721Relayer) AddressHandler(w http.ResponseWriter, r *http.Requ
 		Address: address.Hex(),
 	}
 
-	responseJSON, marshalErr := json.Marshal(response)
-	if marshalErr != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(responseJSON)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (relayer *ERC721Relayer) ValidateHandler(w http.ResponseWriter, r *http.Request) {
@@ -267,26 +264,20 @@ func (relayer *ERC721Relayer) ValidateHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	valid, validationErr := relayer.Validate(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
+	// Validate returns client formatted error.
+	validationErr := relayer.Validate(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
 	if validationErr != nil {
-		log.Printf("Validation error: %s\n", validationErr.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, validationErr.Error(), http.StatusForbidden)
 		return
 	}
 
 	response := ValidateResponse{
 		Request: &requestParameters,
-		Valid:   valid,
+		Valid:   true,
 	}
 
-	responseJSON, marshalErr := json.Marshal(response)
-	if marshalErr != nil {
-		log.Printf("Error marshaling response: %s\n", marshalErr.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(responseJSON)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func (relayer *ERC721Relayer) CreateMessageHashHandler(w http.ResponseWriter, r *http.Request) {
@@ -322,6 +313,7 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 	bodyDecoder := json.NewDecoder(r.Body)
 	decodeErr := bodyDecoder.Decode(&requestParameters)
 	if decodeErr != nil {
+		log.Printf("Error decoding request, err: %s", decodeErr.Error())
 		http.Error(w, "Error decoding request", http.StatusBadRequest)
 		return
 	}
@@ -329,19 +321,26 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 	parameters := &RelayerFunctionParameters{}
 	parseErr := parameters.ParseAuthorizationRequest(&requestParameters)
 	if parseErr != nil {
-		http.Error(w, parseErr.Error(), http.StatusBadRequest)
+		http.Error(w, fmt.Sprintf("Error parse authorization request, err: %v", parseErr), http.StatusBadRequest)
 		return
 	}
 
 	messageHash, hashErr := relayer.CreateMessageHash(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI)
 	if hashErr != nil {
-		log.Printf("Hash error: %s\n", hashErr.Error())
+		log.Printf("Failed to create message hash, err: %s", hashErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+
+	// Validate returns client formatted error.
+	validationErr := relayer.Validate(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
+	if validationErr != nil {
+		http.Error(w, validationErr.Error(), http.StatusForbidden)
+		return
 	}
 
 	signature, authorizationErr := relayer.Authorize(parameters.Recipient, parameters.TokenID, parameters.SourceID, parameters.SourceTokenID, parameters.LiveUntil, parameters.MetadataURI, parameters.AuthorizationMessage)
 	if authorizationErr != nil {
-		log.Printf("Authorization error: %s\n", authorizationErr.Error())
+		log.Printf("Failed to create signature, err: %s", authorizationErr.Error())
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -353,14 +352,8 @@ func (relayer *ERC721Relayer) AuthorizeHandler(w http.ResponseWriter, r *http.Re
 		Signature:         hex.EncodeToString(signature),
 	}
 
-	responseJSON, marshalErr := json.Marshal(response)
-	if marshalErr != nil {
-		log.Printf("Marshal error: %s\n", marshalErr.Error())
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	_, _ = w.Write(responseJSON)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }
 
 func ERC721AuthorizationPayloadHash(chainID *big.Int, recipient common.Address, tokenID, sourceID, sourceTokenID, liveUntil *big.Int, metadataURI string, authorizeBefore int64) ([]byte, error) {
