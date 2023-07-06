@@ -145,7 +145,7 @@ func CreateAuthorizationCommand() *cobra.Command {
 	erc721Cmd.Flags().StringVarP(&erc721SourceChainID, "chain-id", "c", "", "Chain ID of the source chain. For example, for Ethereum mainnet, this would be \"1\".")
 	erc721Cmd.Flags().StringVarP(&erc721Recipient, "recipient", "r", "", "Address which can mint the Ethereal NFT on the target Ethereal.")
 	erc721Cmd.Flags().StringVarP(&erc721SourceContractAddress, "source-id", "s", "", "Address of the source contract. For example, for CryptoKitties, this would be \"0x06012c8cf97bead5deae237070f9587f8e7a266d\".")
-	erc721Cmd.Flags().StringVarP(&erc721SourceTokenId, "token-id", "t", "", "Token ID of the source token.")
+	erc721Cmd.Flags().StringVarP(&erc721SourceTokenId, "source-token-id", "t", "", "Token ID of the source token.")
 	erc721Cmd.Flags().StringVarP(&erc721DestinationAddress, "destination", "d", "", "Address of the target Ethereal contract.")
 	erc721Cmd.Flags().StringVarP(&erc721MetadataURI, "metadata-uri", "u", "", "URI of the metadata for the Ethereal.")
 	erc721Cmd.Flags().StringVarP(&erc721LiveUntil, "live-until", "l", "", "Unix timestamp until which the Ethereal is guaranteed to live.")
