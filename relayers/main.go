@@ -67,18 +67,20 @@ func CreateVersionCommand() *cobra.Command {
 }
 
 func CreateServeCommand() *cobra.Command {
-	var relayerType, bindAddress string
+	var relayerType, serverHost string
+	var serverPort int
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start a relayer server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := RunServer(relayerType, bindAddress)
+			err := RunServer(relayerType, serverHost, serverPort)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVarP(&relayerType, "relayer", "r", "", "Type of relayer you would like to serve. Choices: \"erc721\".")
-	cmd.Flags().StringVarP(&bindAddress, "bind", "b", "", "Address to bind the server to. For example, to bind to port 3743, you would use --bind \":3743\". Default: \":3743\".")
+	cmd.Flags().StringVarP(&serverHost, "address", "a", "127.0.0.1", "Address to bind the server to.")
+	cmd.Flags().IntVarP(&serverPort, "port", "p", 3743, "Port to bind the server to.")
 
 	return cmd
 }
