@@ -201,7 +201,7 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 	}
 
 	if signerAddress != owner {
-		return errors.New("Token owner not verified")
+		return errors.New("Message signer is not token owner")
 	}
 
 	return nil
