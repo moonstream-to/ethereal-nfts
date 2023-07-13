@@ -67,18 +67,20 @@ func CreateVersionCommand() *cobra.Command {
 }
 
 func CreateServeCommand() *cobra.Command {
-	var relayerType, bindAddress string
+	var relayerType, serverHost string
+	var serverPort int
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start a relayer server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := RunServer(relayerType, bindAddress)
+			err := RunServer(relayerType, serverHost, serverPort)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVarP(&relayerType, "relayer", "r", "", "Type of relayer you would like to serve. Choices: \"erc721\".")
-	cmd.Flags().StringVarP(&bindAddress, "bind", "b", "", "Address to bind the server to. For example, to bind to port 3743, you would use --bind \":3743\". Default: \":3743\".")
+	cmd.Flags().StringVarP(&serverHost, "address", "a", "127.0.0.1", "Address to bind the server to.")
+	cmd.Flags().IntVarP(&serverPort, "port", "p", 3743, "Port to bind the server to.")
 
 	return cmd
 }
@@ -142,8 +144,8 @@ func CreateAuthorizationCommand() *cobra.Command {
 	erc721Cmd.Flags().StringVarP(&erc721KeystoreFile, "keystore", "k", "", "Path to the keystore file containing the private key to sign the authorization message with.")
 	erc721Cmd.Flags().StringVarP(&erc721SourceChainID, "chain-id", "c", "", "Chain ID of the source chain. For example, for Ethereum mainnet, this would be \"1\".")
 	erc721Cmd.Flags().StringVarP(&erc721Recipient, "recipient", "r", "", "Address which can mint the Ethereal NFT on the target Ethereal.")
-	erc721Cmd.Flags().StringVarP(&erc721SourceContractAddress, "address", "a", "", "Address of the source contract. For example, for CryptoKitties, this would be \"0x06012c8cf97bead5deae237070f9587f8e7a266d\".")
-	erc721Cmd.Flags().StringVarP(&erc721SourceTokenId, "token-id", "t", "", "Token ID of the source token.")
+	erc721Cmd.Flags().StringVarP(&erc721SourceContractAddress, "source-id", "s", "", "Address of the source contract. For example, for CryptoKitties, this would be \"0x06012c8cf97bead5deae237070f9587f8e7a266d\".")
+	erc721Cmd.Flags().StringVarP(&erc721SourceTokenId, "source-token-id", "t", "", "Token ID of the source token.")
 	erc721Cmd.Flags().StringVarP(&erc721DestinationAddress, "destination", "d", "", "Address of the target Ethereal contract.")
 	erc721Cmd.Flags().StringVarP(&erc721MetadataURI, "metadata-uri", "u", "", "URI of the metadata for the Ethereal.")
 	erc721Cmd.Flags().StringVarP(&erc721LiveUntil, "live-until", "l", "", "Unix timestamp until which the Ethereal is guaranteed to live.")

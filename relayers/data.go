@@ -12,6 +12,10 @@ var ZERO_ADDRESS = common.BigToAddress(big.NewInt(0))
 
 var ErrUnauthorizedRequest error = errors.New("unauthorized request")
 
+type PingResponse struct {
+	Status string `json:"status"`
+}
+
 type AddressResponse struct {
 	Address string `json:"address"`
 }

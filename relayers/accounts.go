@@ -45,10 +45,9 @@ func PrivateKey(privateKeyHex string) (*ecdsa.PrivateKey, error) {
 // PrivateKeyFromKeystoreFile loads a private key from a keystore file. If prompt is true, the user will be
 // interactively prompted for the password to the keystore file even if the password variable is nonempty.
 func PrivateKeyFromKeystoreFile(keystoreFile, password string, prompt bool) (*ecdsa.PrivateKey, error) {
-	var key *keystore.Key
 	keystoreContent, readErr := os.ReadFile(keystoreFile)
 	if readErr != nil {
-		return key.PrivateKey, readErr
+		return nil, readErr
 	}
 
 	// If password is "", prompt user for password.
@@ -56,7 +55,7 @@ func PrivateKeyFromKeystoreFile(keystoreFile, password string, prompt bool) (*ec
 		fmt.Printf("Please provide a password for keystore (%s): ", keystoreFile)
 		passwordRaw, inputErr := term.ReadPassword(int(os.Stdin.Fd()))
 		if inputErr != nil {
-			return key.PrivateKey, fmt.Errorf("error reading password: %s", inputErr.Error())
+			return nil, fmt.Errorf("error reading password: %s", inputErr.Error())
 		}
 		fmt.Print("\n")
 		password = string(passwordRaw)
