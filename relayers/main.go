@@ -28,8 +28,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const RELAYERS_VERSION string = "0.0.1"
-
 func main() {
 	cmd := CreateRootCommand()
 	err := cmd.Execute()
@@ -60,7 +58,7 @@ func CreateVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Prints the version of the relayers tool",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(RELAYERS_VERSION)
+			fmt.Println(RelayersVersion())
 		},
 	}
 	return cmd
