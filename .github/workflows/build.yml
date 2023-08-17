@@ -1,6 +1,11 @@
 name: Build relayers command-line tool
 
-on: [pull_request]
+on:
+  pull_request:
+    branches:
+      - "main"
+    paths:
+      - "relayers/**"
 
 jobs:
   build:
