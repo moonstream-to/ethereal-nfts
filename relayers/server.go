@@ -8,15 +8,8 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"os"
 	"strings"
 	"time"
-)
-
-var (
-	RELAYERS_CORS_ALLOWED_ORIGINS = os.Getenv("RELAYERS_CORS_ALLOWED_ORIGINS")
-
-	ACTIVE_RELAYER_TYPE = ""
 )
 
 // corsMiddleware handles CORS origin check
@@ -109,9 +102,15 @@ func PingHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func RunServer(relayerType, serverHost string, serverPort int) error {
+func RunServer(relayerType, config, serverHost string, serverPort int) error {
 	var server *http.Server
 	var relayer Relayer
+
+	var configsErr error
+	SERVER_CONFIG, configsErr = ReadServerSignerConfig(config)
+	if configsErr != nil {
+		return configsErr
+	}
 
 	switch relayerType {
 	case "erc721":

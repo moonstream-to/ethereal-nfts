@@ -28,7 +28,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const RELAYERS_VERSION string = "0.0.1"
+const RELAYERS_VERSION string = "0.0.2"
 
 func main() {
 	cmd := CreateRootCommand()
@@ -67,19 +67,20 @@ func CreateVersionCommand() *cobra.Command {
 }
 
 func CreateServeCommand() *cobra.Command {
-	var relayerType, serverHost string
+	var relayerType, config, serverHost string
 	var serverPort int
 	cmd := &cobra.Command{
 		Use:   "serve",
 		Short: "Start a relayer server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			err := RunServer(relayerType, serverHost, serverPort)
+			err := RunServer(relayerType, config, serverHost, serverPort)
 			return err
 		},
 	}
 
 	cmd.Flags().StringVarP(&relayerType, "relayer", "r", "", "Type of relayer you would like to serve. Choices: \"erc721\".")
 	cmd.Flags().StringVarP(&serverHost, "address", "a", "127.0.0.1", "Address to bind the server to.")
+	cmd.Flags().StringVarP(&config, "config", "c", "./config.json", "Path to server configuration file")
 	cmd.Flags().IntVarP(&serverPort, "port", "p", 3743, "Port to bind the server to.")
 
 	return cmd
