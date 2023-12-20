@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -34,7 +35,7 @@ var ERC721RelayerAuthorizationPayload []apitypes.Type = []apitypes.Type{
 
 type ERC721Relayer struct {
 	HTTPProviderURL         string
-	Web3Client              *ethclient.Client
+	SourceWeb3Client        *ethclient.Client
 	SourceChainID           *big.Int
 	privateKey              *ecdsa.PrivateKey
 	address                 common.Address
@@ -56,48 +57,58 @@ type ERC721RelayerAuthorizationMessage struct {
 }
 
 func (relayer *ERC721Relayer) ConfigureFromEnv() error {
-	relayer.HTTPProviderURL = os.Getenv("RELAYERS_ERC721_HTTP_PROVIDER_URL")
-	if relayer.HTTPProviderURL == "" {
-		return errors.New("RELAYERS_ERC721_HTTP_PROVIDER_URL must be set")
+	relayerErc721Uri := os.Getenv("RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI")
+	if relayerErc721Uri == "" {
+		return errors.New("RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI must be set")
 	}
+	relayerErc721Uri = strings.TrimSuffix(relayerErc721Uri, "/")
+	nbAccessId := os.Getenv("MOONSTREAM_NODEBALANCER_ACCESS_ID")
+	relayer.HTTPProviderURL = fmt.Sprintf("%s/%s", relayerErc721Uri, nbAccessId)
 
 	client, err := ethclient.Dial(relayer.HTTPProviderURL)
 	if err != nil {
 		return err
 	}
-	relayer.Web3Client = client
+	relayer.SourceWeb3Client = client
 
 	// eth_chainId returns the chain ID (in hex format) used for transaction signing at the current best block
-	chainID, err := client.ChainID(context.Background())
+	sourceChainID, err := client.ChainID(context.Background())
 	if err != nil {
 		return err
 	}
 
-	relayer.SourceChainID = chainID
+	relayer.SourceChainID = sourceChainID
 
-	relayer.privateKey, err = SigningKeyFromEnv()
-	if err != nil {
-		return err
+	if len(*SERVER_CONFIG) == 0 {
+		return fmt.Errorf("no signers available")
+	} else if len(*SERVER_CONFIG) > 1 {
+		return fmt.Errorf("only one signer is supported")
 	}
-
-	relayer.address = crypto.PubkeyToAddress(relayer.privateKey.PublicKey)
+	for _, c := range *SERVER_CONFIG {
+		relayer.privateKey, err = PrivateKeyFromKeystoreFile(c.KeyfilePath, c.Password, false)
+		if err != nil {
+			return err
+		}
+		relayer.address = crypto.PubkeyToAddress(relayer.privateKey.PublicKey)
+		log.Printf("Loaded signer %s", relayer.address.String())
+	}
 
 	var zeroAddress common.Address
 
-	etherealAddressRaw := os.Getenv("RELAYERS_ETHEREAL_ADDRESS")
+	etherealAddressRaw := os.Getenv("RELAYERS_TARGET_ETHEREAL_ADDRESS")
 	relayer.EtherealContractAddress = common.HexToAddress(etherealAddressRaw)
 	if relayer.EtherealContractAddress.Hex() == zeroAddress.Hex() {
-		return fmt.Errorf("RELAYERS_ETHEREAL_ADDRESS must be set to a non-zero Ethereum address")
+		return fmt.Errorf("RELAYERS_TARGET_ETHEREAL_ADDRESS must be set to a non-zero Ethereum address")
 	}
 
-	etherealChainIDRaw := os.Getenv("RELAYERS_ETHEREAL_CHAIN_ID")
+	etherealChainIDRaw := os.Getenv("RELAYERS_TARGET_ETHEREAL_CHAIN_ID")
 	if etherealAddressRaw == "" {
-		return errors.New("RELAYERS_ETHEREAL_CHAIN_ID must be set")
+		return errors.New("RELAYERS_TARGET_ETHEREAL_CHAIN_ID must be set")
 	}
 	var etherealChainIDParsed bool
 	relayer.EtherealChainID, etherealChainIDParsed = new(big.Int).SetString(etherealChainIDRaw, 0)
 	if !etherealChainIDParsed {
-		return fmt.Errorf("RELAYERS_ETHEREAL_CHAIN_ID must be a valid integer, got %s", etherealChainIDRaw)
+		return fmt.Errorf("RELAYERS_TARGET_ETHEREAL_CHAIN_ID must be a valid integer, got %s", etherealChainIDRaw)
 	}
 
 	return nil
@@ -105,7 +116,7 @@ func (relayer *ERC721Relayer) ConfigureFromEnv() error {
 
 func (relayer *ERC721Relayer) Status() ([]byte, error) {
 	// eth_blockNumber returns the number of most recent block
-	blockNumber, err := relayer.Web3Client.BlockNumber(context.Background())
+	blockNumber, err := relayer.SourceWeb3Client.BlockNumber(context.Background())
 	if err != nil {
 		return []byte{}, err
 	}
@@ -186,7 +197,7 @@ func (relayer *ERC721Relayer) Validate(recipient common.Address, tokenID, source
 	signerAddress := crypto.PubkeyToAddress(*signerPubkey)
 
 	contractAddress := common.BigToAddress(sourceID)
-	contract, contractErr := NewERC721Contract(contractAddress, relayer.Web3Client)
+	contract, contractErr := NewERC721Contract(contractAddress, relayer.SourceWeb3Client)
 	if contractErr != nil {
 		log.Printf("contract instance creation error, err: %s", contractErr.Error())
 		return errors.New("Internal server error")

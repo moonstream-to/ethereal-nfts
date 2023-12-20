@@ -1,0 +1,17 @@
+[Unit]
+Description=Ethereal relayers API server
+After=network.target
+StartLimitIntervalSec=300
+StartLimitBurst=3
+
+[Service]
+WorkingDirectory=/home/ubuntu/ethereal-nfts/relayers
+EnvironmentFile=/home/ubuntu/relayers-secrets/app.env
+Environment=AWS_REGION="${AWS_REGION}"
+Restart=on-failure
+RestartSec=15s
+ExecStart=/home/ubuntu/ethereal-nfts/relayers/relayers serve --relayer erc721 --address 127.0.0.1 --port 3743 --config /home/ubuntu/relayers-secrets/config.json
+SyslogIdentifier=relayers
+
+[Install]
+WantedBy=multi-user.target

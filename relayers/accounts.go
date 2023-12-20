@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"os"
 
@@ -10,31 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"golang.org/x/term"
 )
-
-// SigningKeyFromEnv loads the relayer's Ethereum account signing key from the environment variables following this strategy:
-//   - If RELAYERS_PRIVATE_KEY is set, it takes priority. This environment variable is expected to represent
-//     an Ethereum account private key, and is decoded directly to the go struct that will be used for signatures.
-//   - If RELAYERS_KEYSTORE is set, then it is expected to be a path to a keystore file. If RELAYERS_KEYSTORE_PASSWORD
-//     is also set, that is used as the password to decrypt the keystore. Otherwise, the user is prompted for
-//     this password. The signing key is the private key decrypted from this file.
-func SigningKeyFromEnv() (*ecdsa.PrivateKey, error) {
-	privateKeyHex := os.Getenv("RELAYERS_PRIVATE_KEY")
-	if privateKeyHex != "" {
-		return PrivateKey(privateKeyHex)
-	}
-
-	keystoreFile := os.Getenv("RELAYERS_KEYSTORE")
-	if keystoreFile == "" {
-		return nil, errors.New("RELAYERS_KEYSTORE environment variable must be set")
-	}
-
-	prompt := false
-	keystorePassword, ok := os.LookupEnv("RELAYERS_KEYSTORE_PASSWORD")
-	if !ok {
-		prompt = true
-	}
-	return PrivateKeyFromKeystoreFile(keystoreFile, keystorePassword, prompt)
-}
 
 // PrivateKey decodes a private key from its hex representation.
 func PrivateKey(privateKeyHex string) (*ecdsa.PrivateKey, error) {
