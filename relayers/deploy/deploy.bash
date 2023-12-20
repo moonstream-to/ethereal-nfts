@@ -22,6 +22,17 @@ PARAMETERS_ENV_PATH="${SECRETS_DIR}/app.env"
 SCRIPT_DIR="$(realpath $(dirname $0))"
 USER_SYSTEMD_DIR="${USER_SYSTEMD_DIR:-/home/ubuntu/.config/systemd/user}"
 
+SOURCE_INPUT="$1"
+if [ -z "$SOURCE_INPUT" ]; then
+  echo -e "${PREFIX_CRIT} Please specify SOURCE as first argument to script"
+  exit 1
+fi
+TARGET_INPUT="$2"
+if [ -z "$TARGET_INPUT" ]; then
+  echo -e "${PREFIX_CRIT} Please specify TARGET as second argument to script"
+  exit 1
+fi
+
 # Service file
 RELAYERS_SERVICE_FILE="relayers.service"
 
@@ -41,6 +52,36 @@ if [ ! -d "${SECRETS_DIR}" ]; then
 fi
 AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION}" /home/ubuntu/go/bin/checkenv show aws_ssm+relayers:true >> "${PARAMETERS_ENV_PATH}"
 chmod 0640 "${PARAMETERS_ENV_PATH}"
+
+echo
+echo
+echo -e "${PREFIX_INFO} Retrieving RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI parameter"
+RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI="$(AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} /root/go/bin/checkenv show -raw -value aws_ssm+env_name:RELAYERS_SOURCE_ERC721_${SOURCE_INPUT}_WEB3_PROVIDER_URI)"
+if [ -z "$RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI" ]; then
+  echo -e "${PREFIX_CRIT} Unable to fetch RELAYERS_SOURCE_ERC721_${SOURCE_INPUT}_WEB3_PROVIDER_URI parameter"
+  exit 1
+fi
+echo "export RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI=${RELAYERS_SOURCE_ERC721_WEB3_PROVIDER_URI}" >> "${PARAMETERS_ENV_PATH}"
+
+echo
+echo
+echo -e "${PREFIX_INFO} Retrieving RELAYERS_TARGET_ETHEREAL_ADDRESS parameter"
+RELAYERS_TARGET_ETHEREAL_ADDRESS="$(AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} /root/go/bin/checkenv show -raw -value aws_ssm+env_name:RELAYERS_TARGET_ETHEREAL_${TARGET_INPUT}_ADDRESS)"
+if [ -z "$RELAYERS_TARGET_ETHEREAL_ADDRESS" ]; then
+  echo -e "${PREFIX_CRIT} Unable to fetch RELAYERS_TARGET_ETHEREAL_${TARGET_INPUT}_ADDRESS parameter"
+  exit 1
+fi
+echo "export RELAYERS_TARGET_ETHEREAL_ADDRESS=${RELAYERS_TARGET_ETHEREAL_ADDRESS}" >> "${PARAMETERS_ENV_PATH}"
+
+echo
+echo
+echo -e "${PREFIX_INFO} Retrieving RELAYERS_TARGET_ETHEREAL_CHAIN_ID parameter"
+RELAYERS_TARGET_ETHEREAL_CHAIN_ID="$(AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION} /root/go/bin/checkenv show -raw -value aws_ssm+env_name:RELAYERS_TARGET_ETHEREAL_${TARGET_INPUT}_CHAIN_ID)"
+if [ -z "$RELAYERS_TARGET_ETHEREAL_CHAIN_ID" ]; then
+  echo -e "${PREFIX_CRIT} Unable to fetch RELAYERS_TARGET_ETHEREAL_${TARGET_INPUT}_CHAIN_ID parameter"
+  exit 1
+fi
+echo "export RELAYERS_TARGET_ETHEREAL_CHAIN_ID=${RELAYERS_TARGET_ETHEREAL_CHAIN_ID}" >> "${PARAMETERS_ENV_PATH}"
 
 echo
 echo
